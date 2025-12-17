@@ -106,10 +106,10 @@ export const PropertiesPanel = () => {
       <GridPair label="Stroke px">
         <Input
           type="number"
-          value={target.strokeWidth}
+          value={Math.round(target.strokeWidth)}
           min={0}
-          step={0.5}
-          onChange={(e) => update('strokeWidth', Math.max(0, parseFloat(e.target.value) || 0))}
+          step={1}
+          onChange={(e) => update('strokeWidth', Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
         />
       </GridPair>
       {target.type === 'text' && (

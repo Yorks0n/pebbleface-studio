@@ -342,7 +342,7 @@ export const CanvasStage = () => {
                         <Line
                           points={points}
                           stroke="#0D99FF"
-                          strokeWidth={Math.max(0.5, baseStroke)}
+                          strokeWidth={Math.max(0.5, Math.min(1.5, baseStroke))}
                           lineCap="round"
                           lineJoin="round"
                           dash={[8, 6]}
