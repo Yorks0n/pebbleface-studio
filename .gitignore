@@ -1,0 +1,18 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+build
+
+# Temp
+.DS_Store
+*.log
+.pnpm-debug.log*
+
+# TypeScript
+tsconfig.tsbuildinfo
+
+# Env
+.env
+.env.local
