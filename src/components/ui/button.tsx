@@ -4,17 +4,17 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 gap-2',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2ff49] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 gap-2',
   {
     variants: {
       variant: {
         default:
-          'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow shadow-indigo-500/30 hover:brightness-105',
+          'bg-gradient-to-r from-[#3ba8ff] to-[#00f1ff] text-black shadow shadow-[#00f1ff]/30 hover:brightness-110',
         subtle:
-          'bg-white/5 text-white border border-white/10 hover:border-white/20 hover:bg-white/10 shadow-sm',
-        ghost: 'bg-transparent text-white/70 hover:text-white hover:bg-white/5',
+          'bg-white/5 text-white border border-white/10 hover:border-[#3ba8ff]/60 hover:bg-white/10 shadow-sm data-[state=active]:border-[#3ba8ff] data-[state=active]:text-[#3ba8ff]',
+        ghost: 'bg-transparent text-white/70 hover:text-white hover:bg-white/5 data-[state=active]:text-[#3ba8ff]',
         outline:
-          'border border-white/15 text-white hover:border-indigo-400/60 hover:text-white shadow-sm',
+          'border border-white/20 text-white hover:border-[#00f1ff]/60 hover:text-white shadow-sm data-[state=active]:border-[#3ba8ff]',
         destructive: 'bg-red-500 text-white hover:bg-red-600',
       },
       size: {

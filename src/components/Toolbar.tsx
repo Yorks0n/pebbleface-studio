@@ -1,14 +1,12 @@
 import { useRef } from 'react'
-import { Clock3, Image as ImageIcon, Pointer, Square, Type } from 'lucide-react'
-import { useSceneStore, type Tool } from '../store/scene'
+import { Clock3, Image as ImageIcon, Square, Type } from 'lucide-react'
+import { useSceneStore } from '../store/scene'
 import { Button } from './ui/button'
 
 export const Toolbar = () => {
-  const { tool, setTool, addRect, addText, addTimeText, stage } = useSceneStore()
+  const { addRect, addText, addTimeText, stage } = useSceneStore()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const addBitmap = useSceneStore((s) => s.addBitmap)
-
-  const handleTool = (next: Tool) => () => setTool(next)
 
   const handleAddImage = async (file: File) => {
     const dataUrl = await readFileAsDataURL(file)
@@ -28,10 +26,7 @@ export const Toolbar = () => {
     })
   }
 
-  const triggerFile = () => {
-    setTool('image')
-    fileInputRef.current?.click()
-  }
+  const triggerFile = () => fileInputRef.current?.click()
 
   const centerPoint = { x: stage.width / 2, y: stage.height / 2 }
   const addRectCentered = () => addRect(centerPoint.x - 32, centerPoint.y - 24)
@@ -42,51 +37,22 @@ export const Toolbar = () => {
     <div className="glass-panel rounded-2xl p-3 flex flex-col gap-3">
       <div className="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
         Pebble Studio
-        <span className="ml-auto text-[10px] uppercase text-white/60">Tools</span>
+        <span className="ml-auto text-[10px] uppercase text-[#f2ff49]">Quick Add</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant={tool === 'select' ? 'default' : 'subtle'}
-          onClick={handleTool('select')}
-          size="lg"
-          className="justify-start"
-        >
-          <Pointer size={16} />
-          Select
-        </Button>
-        <Button
-          variant="subtle"
-          onClick={addRectCentered}
-          size="lg"
-          className="justify-start"
-        >
+        <Button variant="subtle" onClick={addRectCentered} size="lg" className="justify-start">
           <Square size={16} />
           Rectangle
         </Button>
-        <Button
-          variant="subtle"
-          onClick={addTextCentered}
-          size="lg"
-          className="justify-start"
-        >
+        <Button variant="subtle" onClick={addTextCentered} size="lg" className="justify-start">
           <Type size={16} />
           Text
         </Button>
-        <Button
-          variant="subtle"
-          onClick={addTimeCentered}
-          size="lg"
-          className="justify-start"
-        >
+        <Button variant="subtle" onClick={addTimeCentered} size="lg" className="justify-start">
           <Clock3 size={16} />
           Time / Date
         </Button>
-        <Button
-          variant={tool === 'image' ? 'default' : 'subtle'}
-          onClick={triggerFile}
-          size="lg"
-          className="justify-start"
-        >
+        <Button variant="subtle" onClick={triggerFile} size="lg" className="justify-start">
           <ImageIcon size={16} />
           Bitmap
         </Button>

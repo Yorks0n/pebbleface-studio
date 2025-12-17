@@ -5,6 +5,8 @@ module.exports = {
     extend: {
       colors: {
         canvas: '#0f1115',
+        accent: '#f2ff49',
+        neon: '#00f1ff',
       },
       fontFamily: {
         display: ['"Departure Mono"', '"SFMono-Regular"', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],

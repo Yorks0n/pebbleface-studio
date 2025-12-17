@@ -21,6 +21,13 @@ type TimeKeys = keyof TimeNode
 export const PropertiesPanel = () => {
   const { nodes, selectedIds, updateNode, removeNode } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
+  const bgTint =
+    target && 'fill' in target
+      ? (target as RectNode | TextNode | TimeNode).fill
+      : '#0b0d12'
+  const bgStyle = target
+    ? { background: `linear-gradient(135deg, ${bgTint}22, rgba(0,0,0,0.6))` }
+    : { background: 'rgba(255,255,255,0.04)' }
 
   const update = (key: SceneNodeKey, value: unknown) => {
     if (!target) return
@@ -40,7 +47,7 @@ export const PropertiesPanel = () => {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-2xl border border-white/10 p-4" style={bgStyle}>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-semibold">{target.name}</div>

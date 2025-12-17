@@ -147,12 +147,21 @@ export const CanvasStage = () => {
           scaleX={scale}
           scaleY={scale}
           ref={stageRef}
-          className="bg-[#11131a] rounded-xl border border-white/5"
+          className="bg-[#0b0d12] rounded-xl border border-white/10 shadow-lg shadow-black/40"
           onMouseDown={onStageMouseDown}
           onTouchStart={onStageMouseDown}
         >
           <Layer>
-            <Rect x={0} y={0} width={stage.width} height={stage.height} fill="#05060a" cornerRadius={12} />
+            <Rect
+              x={0}
+              y={0}
+              width={stage.width}
+              height={stage.height}
+              fill="#05060a"
+              cornerRadius={12}
+              onClick={() => setSelection([])}
+              onTap={() => setSelection([])}
+            />
             {displayNodes.map((node) => {
               if (node.type === 'rect') {
                 return (
