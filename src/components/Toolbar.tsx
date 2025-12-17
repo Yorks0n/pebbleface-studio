@@ -92,7 +92,8 @@ export const Toolbar = () => {
         </Button>
       </div>
       <div className="rounded-xl border border-white/5 p-3 bg-black/20 text-xs text-white/70 leading-relaxed">
-        - 点击按钮快速添加元素<br />- 点击画布创建 Rect / Text / Time<br />- Shift 多选后可用 Transformer 缩放/旋转<br />- 拖拽元素以定位
+        - Quick-add elements with the buttons<br />- Click canvas to place Rect / Text / Time<br />- Hold Shift for
+        multi-select, then transform<br />- Drag to position
       </div>
       <input
         ref={fileInputRef}

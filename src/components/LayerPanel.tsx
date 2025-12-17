@@ -16,7 +16,7 @@ export const LayerPanel = () => {
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <Layers size={16} />
-        图层
+        Layers
       </div>
       <div className="space-y-2 max-h-72 overflow-auto pr-1 scrollbar-thin">
         {ordered.map((node, index) => {
@@ -36,23 +36,23 @@ export const LayerPanel = () => {
                   </span>
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'top')} title="置顶">
+                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'top')} title="Move to top">
                     <ArrowUpToLine size={15} />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'up')} title="上移">
+                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'up')} title="Move up">
                     <MoveUp size={15} />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'down')} title="下移">
+                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'down')} title="Move down">
                     <MoveDown size={15} />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'bottom')} title="置底">
+                  <Button variant="ghost" size="icon" onClick={() => moveLayer(node.id, 'bottom')} title="Move to bottom">
                     <ArrowDownToLine size={15} />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => removeNode(node.id)}
-                    title="删除"
+                    title="Remove"
                     className="text-red-300 hover:text-red-100"
                   >
                     <Trash size={15} />
@@ -63,7 +63,7 @@ export const LayerPanel = () => {
                 className="mt-2 w-full rounded-md bg-black/30 px-2 py-1 text-xs text-white/70 hover:bg-black/40 transition"
                 onClick={() => setSelection([node.id])}
               >
-                选中
+                Select
               </button>
             </div>
           )

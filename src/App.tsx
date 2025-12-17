@@ -32,17 +32,18 @@ function App() {
             Visual Editor MVP for Pebble Watchfaces
           </h1>
           <p className="text-white/70 max-w-2xl">
-            左侧选择工具，中间画布 200×228，右侧属性与图层。拖拽、缩放、旋转，导出 Pebble SDK 项目 zip。
+            Use the toolbar to drop shapes, time, text, and bitmaps on the 200×228 canvas. Adjust properties and layers,
+            then export a Pebble SDK-ready zip.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-            <span className="text-sm text-white/80">Aplite 黑白预览</span>
+            <span className="text-sm text-white/80">Aplite monochrome preview</span>
             <Switch checked={aplitePreview} onClick={toggleAplite} />
           </div>
           <Button onClick={handleExport} disabled={exporting} size="lg">
             <Download size={16} />
-            {exporting ? '导出中...' : 'Export Pebble Project (zip)'}
+            {exporting ? 'Exporting...' : 'Export Pebble Project (zip)'}
           </Button>
         </div>
       </header>
@@ -53,12 +54,12 @@ function App() {
           <CanvasStage />
           <div className="grid grid-cols-2 gap-3 text-sm text-white/70">
             <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-              <p className="text-xs uppercase text-white/60">提示</p>
-              点击空白处放置 Rect/Text；Shift 可多选，Transformer 框选缩放。
+              <p className="text-xs uppercase text-white/60">Tips</p>
+              Click canvas to place Rect/Text/Time. Hold Shift to multi-select and transform.
             </div>
             <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-              <p className="text-xs uppercase text-white/60">导出</p>
-              资源会写入 appinfo.json 和 resources/images，并生成 src/main.c 框架。
+              <p className="text-xs uppercase text-white/60">Export</p>
+              Generates Pebble SDK layout in `src/main.c`, `package.json`, `wscript`, and copies images to resources.
             </div>
           </div>
         </div>

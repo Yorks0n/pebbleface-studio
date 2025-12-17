@@ -7,8 +7,8 @@ module.exports = {
         canvas: '#0f1115',
       },
       fontFamily: {
-        display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
-        body: ['"Inter Tight"', 'system-ui', 'sans-serif'],
+        display: ['"Departure Mono"', '"SFMono-Regular"', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+        body: ['"Departure Mono"', '"SFMono-Regular"', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
       },
       boxShadow: {
         inset: 'inset 0 1px 0 0 rgba(255,255,255,0.05)',

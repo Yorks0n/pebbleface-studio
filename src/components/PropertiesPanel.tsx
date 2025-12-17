@@ -34,7 +34,7 @@ export const PropertiesPanel = () => {
   if (!target) {
     return (
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-        选择一个元素查看属性。
+        Select an element to edit its properties.
       </div>
     )
   }
@@ -46,7 +46,7 @@ export const PropertiesPanel = () => {
           <div className="text-sm font-semibold">{target.name}</div>
           <div className="text-xs uppercase text-white/50">{target.type}</div>
         </div>
-        <Button size="icon" variant="ghost" onClick={() => removeNode(target.id)} title="删除">
+        <Button size="icon" variant="ghost" onClick={() => removeNode(target.id)} title="Remove">
           <Trash size={16} />
         </Button>
       </div>
