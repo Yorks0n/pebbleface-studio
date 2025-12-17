@@ -38,12 +38,12 @@ export const Toolbar = () => {
   }
 
   return (
-    <div className="glass-panel rounded-2xl p-3 flex flex-col gap-3">
-      <div className="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
-        Pebble Studio
-        <span className="ml-auto text-[10px] uppercase text-[#f2ff49]">Quick Add</span>
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-white">
+        Tools
+        <span className="text-[11px] uppercase text-white/60">Quick Add</span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="glass-panel rounded-2xl p-3 flex flex-wrap items-center gap-2">
         <Button variant="subtle" onClick={addRectCentered} size="lg" className="justify-start">
           <Square size={16} />
           Rectangle
@@ -64,18 +64,13 @@ export const Toolbar = () => {
           variant="subtle"
           onClick={enableGPathTool}
           size="lg"
-          className="justify-start col-span-2"
+          className="justify-start"
           data-state={tool === 'gpath' ? 'active' : undefined}
           aria-pressed={tool === 'gpath'}
         >
           <PenTool size={16} />
-          GPath (click canvas)
+          GPath
         </Button>
-      </div>
-      <div className="rounded-xl border border-white/5 p-3 bg-black/20 text-xs text-white/70 leading-relaxed">
-        - Quick-add elements with the buttons<br />- GPath: pick the tool, then click canvas repeatedly to add points<br />
-        - Click canvas to place Rect / Text / Time<br />- Hold Shift for multi-select, then transform<br />- Drag to
-        position
       </div>
       <input
         ref={fileInputRef}

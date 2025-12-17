@@ -31,10 +31,6 @@ function App() {
           <h1 className="font-display text-3xl md:text-4xl font-semibold">
             Visual Editor MVP for Pebble Watchfaces
           </h1>
-          <p className="text-white/70 max-w-2xl">
-            Use the toolbar to drop shapes, time, text, and bitmaps on the 200×228 canvas. Adjust properties and layers,
-            then export a Pebble SDK-ready zip.
-          </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
@@ -48,24 +44,16 @@ function App() {
         </div>
       </header>
 
-      <main className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr_320px] xl:grid-cols-[340px_1fr_360px] items-start">
-        <Toolbar />
-        <div className="glass-panel rounded-3xl p-4 flex flex-col gap-4">
-          <CanvasStage />
-          <div className="grid grid-cols-2 gap-3 text-sm text-white/70">
-            <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-              <p className="text-xs uppercase text-white/60">Tips</p>
-              Click canvas to place Rect/Text/Time. Hold Shift to multi-select and transform.
-            </div>
-            <div className="rounded-xl bg-black/40 p-3 border border-white/5">
-              <p className="text-xs uppercase text-white/60">Export</p>
-              Generates Pebble SDK layout in `src/main.c`, `package.json`, `wscript`, and copies images to resources.
-            </div>
-          </div>
-        </div>
-        <div className="glass-panel rounded-3xl p-4 space-y-6">
-          <PropertiesPanel />
+      <main className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr_260px] lg:grid-cols-[240px_1fr_280px] xl:grid-cols-[260px_1fr_300px] items-stretch">
+        <div className="glass-panel rounded-3xl p-4 h-full flex">
           <LayerPanel />
+        </div>
+        <div className="glass-panel rounded-3xl p-3 flex flex-col gap-3 h-full">
+          <CanvasStage />
+          <Toolbar />
+        </div>
+        <div className="glass-panel rounded-3xl p-4 h-full flex flex-col">
+          <PropertiesPanel />
         </div>
       </main>
     </div>
