@@ -17,12 +17,13 @@ type BitmapProps = {
   node: SceneNode & { type: 'bitmap' }
   onSelect: (id: string, evt: Konva.KonvaEventObject<unknown>) => void
   onDragEnd: (id: string, evt: Konva.KonvaEventObject<DragEvent>) => void
+  onDragMove: (id: string, evt: Konva.KonvaEventObject<DragEvent>) => void
   onTransformEnd: (id: string) => void
   registerRef: (id: string, el: Konva.Node | null) => void
   draggable: boolean
 }
 
-const BitmapShape = ({ node, onSelect, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
+const BitmapShape = ({ node, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
   const [img] = useImage(node.dataUrl)
   return (
     <KonvaImage
@@ -38,6 +39,7 @@ const BitmapShape = ({ node, onSelect, onDragEnd, onTransformEnd, registerRef, d
       stroke={node.stroke}
       onClick={(e) => onSelect(node.id, e)}
       onTap={(e) => onSelect(node.id, e)}
+      onDragMove={(e) => onDragMove(node.id, e)}
       onDragEnd={(e) => onDragEnd(node.id, e)}
       onTransformEnd={() => onTransformEnd(node.id)}
     />
@@ -303,6 +305,7 @@ export const CanvasStage = () => {
                     draggable
                     onClick={handleSelectClick(node.id)}
                     onTap={handleSelectTap(node.id)}
+                    onDragMove={(e) => handleDrag(node.id, e)}
                     onDragEnd={(e) => handleDrag(node.id, e)}
                     onTransformEnd={() => handleTransform(node.id)}
                   />
@@ -311,6 +314,7 @@ export const CanvasStage = () => {
               if (node.type === 'gpath') {
                 const selected = selectedIds.includes(node.id)
                 const points = node.points.flatMap((p) => [p.x, p.y])
+                const baseStroke = Math.max(0.5, node.strokeWidth || 1)
                 return (
                   <>
                     <Line
@@ -320,7 +324,7 @@ export const CanvasStage = () => {
                       y={node.y}
                       points={points}
                       stroke={getDisplayColor(node.stroke, aplitePreview)}
-                      strokeWidth={node.strokeWidth || 1}
+                      strokeWidth={baseStroke}
                       lineCap="round"
                       lineJoin="round"
                       hitStrokeWidth={12}
@@ -328,6 +332,7 @@ export const CanvasStage = () => {
                       rotation={node.rotation}
                       onClick={handleSelectClick(node.id)}
                       onTap={handleSelectTap(node.id)}
+                      onDragMove={(e) => handleDrag(node.id, e)}
                       onDragEnd={(e) => handleDrag(node.id, e)}
                       onTransformEnd={() => handleTransform(node.id)}
                       dataType="gpath"
@@ -336,8 +341,8 @@ export const CanvasStage = () => {
                       <Group x={node.x} y={node.y} rotation={node.rotation} listening={false}>
                         <Line
                           points={points}
-                          stroke="#7c3aed"
-                          strokeWidth={Math.max(1, (node.strokeWidth || 1) + 0.5)}
+                          stroke="#0D99FF"
+                          strokeWidth={Math.max(0.5, baseStroke)}
                           lineCap="round"
                           lineJoin="round"
                           dash={[8, 6]}
@@ -347,10 +352,10 @@ export const CanvasStage = () => {
                             key={`${node.id}-pt-${idx}`}
                             x={p.x}
                             y={p.y}
-                            radius={4}
+                            radius={3}
                             fill="#0b0c10"
-                            stroke="#7c3aed"
-                            strokeWidth={1.25}
+                            stroke="#0D99FF"
+                            strokeWidth={1}
                           />
                         ))}
                       </Group>
@@ -378,6 +383,7 @@ export const CanvasStage = () => {
                     padding={4}
                     onClick={handleSelectClick(node.id)}
                     onTap={handleSelectTap(node.id)}
+                    onDragMove={(e) => handleDrag(node.id, e)}
                     onDragEnd={(e) => handleDrag(node.id, e)}
                     onTransformEnd={() => handleTransform(node.id)}
                   />
@@ -403,6 +409,7 @@ export const CanvasStage = () => {
                     padding={4}
                     onClick={handleSelectClick(node.id)}
                     onTap={handleSelectTap(node.id)}
+                    onDragMove={(e) => handleDrag(node.id, e)}
                     onDragEnd={(e) => handleDrag(node.id, e)}
                     onTransformEnd={() => handleTransform(node.id)}
                   />
@@ -414,6 +421,7 @@ export const CanvasStage = () => {
                   node={node}
                   onSelect={handleSelect}
                   onDragEnd={handleDrag}
+                  onDragMove={handleDrag}
                   onTransformEnd={handleTransform}
                   registerRef={registerRef}
                   draggable
@@ -424,9 +432,9 @@ export const CanvasStage = () => {
               ref={transformerRef}
               rotateEnabled
               anchorSize={8}
-              borderStroke="#7c3aed"
+              borderStroke="#0D99FF"
               borderStrokeWidth={1}
-              anchorStroke="#7c3aed"
+              anchorStroke="#0D99FF"
               anchorFill="#0b0c10"
             />
           </Layer>

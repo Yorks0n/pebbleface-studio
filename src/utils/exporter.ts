@@ -149,11 +149,11 @@ static const uint32_t s_bitmap_res_ids[${bitmaps.length}] = { ${bitmapResIds.joi
         .map((p) => `  { ${round(p.x)}, ${round(p.y)} }`)
         .join(',\n')
       return `
-static const GPoint s_gpath_points_${idx}[] = {
+static GPoint s_gpath_points_${idx}[] = {
 ${points}
 };
 
-static const GPathInfo s_gpath_info_${idx} = {
+static GPathInfo s_gpath_info_${idx} = {
   .num_points = ${n.points.length},
   .points = s_gpath_points_${idx},
 };
