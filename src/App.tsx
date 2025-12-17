@@ -48,7 +48,7 @@ function App() {
         </div>
       </header>
 
-      <main className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr_320px] items-start">
+      <main className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr_320px] xl:grid-cols-[340px_1fr_360px] items-start">
         <Toolbar />
         <div className="glass-panel rounded-3xl p-4 flex flex-col gap-4">
           <CanvasStage />

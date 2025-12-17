@@ -1,10 +1,10 @@
 import { useRef } from 'react'
-import { Clock3, Image as ImageIcon, Square, Type } from 'lucide-react'
+import { Clock3, Image as ImageIcon, PenTool, Square, Type } from 'lucide-react'
 import { useSceneStore } from '../store/scene'
 import { Button } from './ui/button'
 
 export const Toolbar = () => {
-  const { addRect, addText, addTimeText, stage } = useSceneStore()
+  const { addRect, addText, addTimeText, stage, setTool, tool, setSelection } = useSceneStore()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const addBitmap = useSceneStore((s) => s.addBitmap)
 
@@ -32,6 +32,10 @@ export const Toolbar = () => {
   const addRectCentered = () => addRect(centerPoint.x - 32, centerPoint.y - 24)
   const addTextCentered = () => addText(centerPoint.x - 48, centerPoint.y - 10)
   const addTimeCentered = () => addTimeText(centerPoint.x - 48, centerPoint.y + 16)
+  const enableGPathTool = () => {
+    setSelection([])
+    setTool(tool === 'gpath' ? 'select' : 'gpath')
+  }
 
   return (
     <div className="glass-panel rounded-2xl p-3 flex flex-col gap-3">
@@ -56,10 +60,22 @@ export const Toolbar = () => {
           <ImageIcon size={16} />
           Bitmap
         </Button>
+        <Button
+          variant="subtle"
+          onClick={enableGPathTool}
+          size="lg"
+          className="justify-start col-span-2"
+          data-state={tool === 'gpath' ? 'active' : undefined}
+          aria-pressed={tool === 'gpath'}
+        >
+          <PenTool size={16} />
+          GPath (click canvas)
+        </Button>
       </div>
       <div className="rounded-xl border border-white/5 p-3 bg-black/20 text-xs text-white/70 leading-relaxed">
-        - Quick-add elements with the buttons<br />- Click canvas to place Rect / Text / Time<br />- Hold Shift for
-        multi-select, then transform<br />- Drag to position
+        - Quick-add elements with the buttons<br />- GPath: pick the tool, then click canvas repeatedly to add points<br />
+        - Click canvas to place Rect / Text / Time<br />- Hold Shift for multi-select, then transform<br />- Drag to
+        position
       </div>
       <input
         ref={fileInputRef}

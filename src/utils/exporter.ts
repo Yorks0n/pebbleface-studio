@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
-import { type SceneNode, type BitmapNode, type TimeNode } from '../store/scene'
+import { type SceneNode, type BitmapNode, type TimeNode, type GPathNode } from '../store/scene'
 
 type PebbleResource = {
   type: string
@@ -127,6 +127,7 @@ const templateMainC = (nodes: SceneNode[]) => {
   const texts = nodes.filter((n) => n.type === 'text')
   const times = nodes.filter((n) => n.type === 'time') as TimeNode[]
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
+  const gpaths = nodes.filter((n) => n.type === 'gpath') as GPathNode[]
 
   const bitmapResIds = bitmaps.map((b) => `RESOURCE_ID_${sanitizeResourceName(b.name)}`)
 
@@ -140,6 +141,26 @@ const templateMainC = (nodes: SceneNode[]) => {
 static GBitmap *s_bitmaps[${bitmaps.length}];
 static const uint32_t s_bitmap_res_ids[${bitmaps.length}] = { ${bitmapResIds.join(', ')} };`
       : ''
+
+  const gpathPointArrays = gpaths
+    .filter((n) => n.points.length > 1)
+    .map((n, idx) => {
+      const points = n.points
+        .map((p) => `  { ${round(p.x)}, ${round(p.y)} }`)
+        .join(',\n')
+      return `
+static const GPoint s_gpath_points_${idx}[] = {
+${points}
+};
+
+static const GPathInfo s_gpath_info_${idx} = {
+  .num_points = ${n.points.length},
+  .points = s_gpath_points_${idx},
+};
+
+static GPath *s_gpath_${idx};`
+    })
+    .join('\n')
 
   const drawRects = rects
     .map((n) => {
@@ -155,6 +176,43 @@ static const uint32_t s_bitmap_res_ids[${bitmaps.length}] = { ${bitmapResIds.joi
   graphics_draw_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));`
     })
     .join('\n')
+
+  const drawableGPaths = gpaths.filter((n) => n.points.length > 1)
+
+  const drawGPaths = drawableGPaths
+    .map((n, idx) => {
+      const strokeHex = toHexInt(n.stroke || '#ffffff')
+      return `
+  // ${n.name}
+  graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
+  graphics_context_set_stroke_width(ctx, ${Math.max(1, Math.round(n.strokeWidth || 1))});
+  if (s_gpath_${idx}) {
+    gpath_move_to(s_gpath_${idx}, GPoint(${round(n.x)}, ${round(n.y)}));
+    gpath_draw_outline(ctx, s_gpath_${idx});
+  }`
+    })
+    .join('\n')
+
+  const createGPaths = drawableGPaths
+    .map(
+      (n, idx) => `
+  s_gpath_${idx} = gpath_create(&s_gpath_info_${idx});
+  gpath_rotate_to(s_gpath_${idx}, deg_to_trig(${Math.round(n.rotation || 0)}));`,
+    )
+    .join('\n')
+
+  const destroyGPaths =
+    drawableGPaths.length > 0
+      ? drawableGPaths
+          .map(
+            (_, idx) => `
+  if (s_gpath_${idx}) {
+    gpath_destroy(s_gpath_${idx});
+    s_gpath_${idx} = NULL;
+  }`,
+          )
+          .join('')
+      : ''
 
   const drawTexts = texts
     .map((n) => {
@@ -220,6 +278,7 @@ static const uint32_t s_bitmap_res_ids[${bitmaps.length}] = { ${bitmapResIds.joi
 
 static Window *s_main_window;
 static Layer *s_root_layer;${bitmapDecls}
+${gpathPointArrays}
 
 static GColor color_hex(uint32_t hex) {
   return GColorFromRGB((hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF);
@@ -241,6 +300,12 @@ static GFont font_for(const char *name, int size) {
   return fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
 }
 
+static int32_t deg_to_trig(int32_t degrees) {
+  int32_t d = degrees % 360;
+  if (d < 0) d += 360;
+  return (TRIG_MAX_ANGLE * d) / 360;
+}
+
 ${timeFormats || ''}
 
 static void layer_update_proc(Layer *layer, GContext *ctx) {
@@ -248,6 +313,7 @@ static void layer_update_proc(Layer *layer, GContext *ctx) {
   graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
 ${drawRects}
 ${drawBitmaps}
+${drawGPaths}
 ${drawTexts}
 ${drawTimes}
 }
@@ -255,6 +321,7 @@ ${drawTimes}
 static void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);${loadBitmaps}
+${createGPaths}
 
   s_root_layer = layer_create(bounds);
   layer_set_update_proc(s_root_layer, layer_update_proc);
@@ -263,6 +330,7 @@ static void main_window_load(Window *window) {
 
 static void main_window_unload(Window *window) {${unloadBitmaps}
   layer_destroy(s_root_layer);
+${destroyGPaths}
 }
 
 static void init(void) {

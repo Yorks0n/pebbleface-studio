@@ -7,6 +7,7 @@ import {
   type TextNode,
   type BitmapNode,
   type TimeNode,
+  type GPathNode,
   timeFormatOptions,
   allowedFonts,
 } from '../store/scene'
@@ -15,7 +16,7 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { ColorSelect } from './ColorSelect'
 
-type SceneNodeKey = keyof (RectNode & TextNode & BitmapNode & TimeNode)
+type SceneNodeKey = keyof (RectNode & TextNode & BitmapNode & TimeNode & GPathNode)
 type TimeKeys = keyof TimeNode
 
 export const PropertiesPanel = () => {
@@ -45,6 +46,8 @@ export const PropertiesPanel = () => {
       </div>
     )
   }
+
+  const isGPath = target.type === 'gpath'
 
   return (
     <div className="space-y-3 rounded-2xl border border-white/10 p-4" style={bgStyle}>
@@ -76,6 +79,8 @@ export const PropertiesPanel = () => {
           type="number"
           value={Math.round(target.width)}
           min={4}
+          disabled={isGPath}
+          title={isGPath ? 'Resize GPath via canvas handles' : undefined}
           onChange={(e) => update('width', Math.max(4, parseFloat(e.target.value) || 0))}
         />
       </GridPair>
@@ -84,6 +89,8 @@ export const PropertiesPanel = () => {
           type="number"
           value={Math.round(target.height)}
           min={4}
+          disabled={isGPath}
+          title={isGPath ? 'Resize GPath via canvas handles' : undefined}
           onChange={(e) => update('height', Math.max(4, parseFloat(e.target.value) || 0))}
         />
       </GridPair>
@@ -182,6 +189,11 @@ export const PropertiesPanel = () => {
       {target.type === 'bitmap' && (
         <GridPair label="File">
           <div className="text-sm text-white/80 truncate">{target.fileName}</div>
+        </GridPair>
+      )}
+      {target.type === 'gpath' && (
+        <GridPair label="Points">
+          <div className="text-sm text-white/80">{target.points.length}</div>
         </GridPair>
       )}
     </div>

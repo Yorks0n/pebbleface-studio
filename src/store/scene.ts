@@ -2,12 +2,12 @@ import { create } from 'zustand'
 import { apliteColor, uid } from '../lib/utils'
 import { defaultFill, defaultStroke } from '../lib/color-dict'
 
-export type Tool = 'select' | 'rect' | 'text' | 'image' | 'time'
+export type Tool = 'select' | 'rect' | 'text' | 'image' | 'time' | 'gpath'
 
 export type BaseNode = {
   id: string
   name: string
-  type: 'rect' | 'text' | 'bitmap' | 'time'
+  type: 'rect' | 'text' | 'bitmap' | 'time' | 'gpath'
   x: number
   y: number
   width: number
@@ -46,7 +46,12 @@ export type BitmapNode = BaseNode & {
   file?: File | null
 }
 
-export type SceneNode = RectNode | TextNode | BitmapNode | TimeNode
+export type GPathNode = BaseNode & {
+  type: 'gpath'
+  points: { x: number; y: number }[]
+}
+
+export type SceneNode = RectNode | TextNode | BitmapNode | TimeNode | GPathNode
 
 export type TimeFormatId =
   | 'HH:mm'
@@ -72,6 +77,8 @@ export type SceneState = {
   addText: (x: number, y: number) => void
   addTimeText: (x: number, y: number) => void
   addBitmap: (node: Omit<BitmapNode, keyof BaseNode | 'type'> & Partial<BaseNode>) => void
+  addGPath: (point: { x: number; y: number }) => string
+  appendGPathPoint: (id: string, point: { x: number; y: number }) => void
   updateNode: (id: string, data: Partial<SceneNode>) => void
   removeNode: (id: string) => void
   moveLayer: (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => void
@@ -225,6 +232,51 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         tool: 'select',
       }
     }),
+  addGPath: (point) => {
+    const id = uid('gpath')
+    set((state) => {
+      const normalized = normalizeGPathPoints([{ x: point.x, y: point.y }])
+      return {
+        nodes: [
+          ...state.nodes,
+          {
+            id,
+            name: `Path ${state.nodes.filter((n) => n.type === 'gpath').length + 1}`,
+            type: 'gpath',
+            x: normalized.origin.x,
+            y: normalized.origin.y,
+            width: normalized.width,
+            height: normalized.height,
+            rotation: 0,
+            stroke: '#ffffff',
+            strokeWidth: 1,
+            points: normalized.points,
+          },
+        ],
+        selectedIds: [id],
+        tool: 'gpath',
+      }
+    })
+    return id
+  },
+  appendGPathPoint: (id, point) =>
+    set((state) => {
+      const nodes = state.nodes.map((n) => {
+        if (n.id !== id || n.type !== 'gpath') return n
+        const absolutePoints = n.points.map((p) => ({ x: n.x + p.x, y: n.y + p.y }))
+        absolutePoints.push(point)
+        const normalized = normalizeGPathPoints(absolutePoints)
+        return {
+          ...n,
+          x: normalized.origin.x,
+          y: normalized.origin.y,
+          width: normalized.width,
+          height: normalized.height,
+          points: normalized.points,
+        }
+      }) as SceneNode[]
+      return { nodes, selectedIds: [id] }
+    }),
   updateNode: (id, data) =>
     set((state) => ({
       nodes: state.nodes.map((n) => (n.id === id ? ({ ...n, ...data } as SceneNode) : n)) as SceneNode[],
@@ -239,6 +291,22 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
 export const getDisplayColor = (color: string, aplite: boolean) =>
   aplite ? apliteColor(color || '#ffffff') : color
+
+export const normalizeGPathPoints = (absolutePoints: { x: number; y: number }[]) => {
+  if (absolutePoints.length === 0) {
+    return { origin: { x: 0, y: 0 }, points: [], width: 1, height: 1 }
+  }
+  const xs = absolutePoints.map((p) => p.x)
+  const ys = absolutePoints.map((p) => p.y)
+  const minX = Math.min(...xs)
+  const minY = Math.min(...ys)
+  const maxX = Math.max(...xs)
+  const maxY = Math.max(...ys)
+  const normalizedPoints = absolutePoints.map((p) => ({ x: p.x - minX, y: p.y - minY }))
+  const width = Math.max(1, maxX - minX || 1)
+  const height = Math.max(1, maxY - minY || 1)
+  return { origin: { x: minX, y: minY }, points: normalizedPoints, width, height }
+}
 
 function reorderNodes(nodes: SceneNode[], id: string, direction: 'up' | 'down' | 'top' | 'bottom') {
   const index = nodes.findIndex((n) => n.id === id)

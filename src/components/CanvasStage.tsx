@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Layer, Rect, Stage, Text as KonvaText, Image as KonvaImage, Transformer } from 'react-konva'
+import { Layer, Rect, Stage, Text as KonvaText, Image as KonvaImage, Transformer, Line, Circle, Group } from 'react-konva'
 import useImage from 'use-image'
-import type Konva from 'konva'
-import { useSceneStore, type SceneNode, getDisplayColor, timeFormatOptions, type TimeNode } from '../store/scene'
+import Konva from 'konva'
+import {
+  useSceneStore,
+  type SceneNode,
+  getDisplayColor,
+  timeFormatOptions,
+  type TimeNode,
+  normalizeGPathPoints,
+  type GPathNode,
+} from '../store/scene'
 import { useState } from 'react'
 
 type BitmapProps = {
@@ -45,14 +53,21 @@ export const CanvasStage = () => {
     addRect,
     addText,
     addTimeText,
+    addGPath,
+    appendGPathPoint,
+    removeNode,
     tool,
     aplitePreview,
     stage,
+    setTool,
   } = useSceneStore()
   const stageRef = useRef<Konva.Stage | null>(null)
   const transformerRef = useRef<Konva.Transformer | null>(null)
   const shapeRefs = useRef<Record<string, Konva.Node | null>>({})
   const [now, setNow] = useState(() => new Date())
+  const [activeGPathId, setActiveGPathId] = useState<string | null>(null)
+  const backgroundRef = useRef<Konva.Rect | null>(null)
+  const closeThreshold = 8
 
   const scale = 1.8
 
@@ -61,7 +76,66 @@ export const CanvasStage = () => {
     return () => window.clearInterval(t)
   }, [])
 
+  useEffect(() => {
+    if (tool !== 'gpath') {
+      setActiveGPathId(null)
+    }
+  }, [tool])
+
+  const syncTextBounds = (id: string) => {
+    const ref = shapeRefs.current[id]
+    if (!ref || !(ref instanceof Konva.Text)) return
+    const rect = ref.getSelfRect()
+    const width = Math.max(4, rect.width)
+    const height = Math.max(4, rect.height)
+    const node = nodes.find((n) => n.id === id)
+    if (!node) return
+    if (Math.abs(node.width - width) > 0.5 || Math.abs(node.height - height) > 0.5) {
+      updateNode(id, { width, height })
+    }
+  }
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'OPTION'].includes(target.tagName))) {
+        return
+      }
+      if (e.key === 'Escape') {
+        setSelection([])
+        return
+      }
+      if (selectedIds.length === 0) return
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        selectedIds.forEach((id) => removeNode(id))
+        setSelection([])
+        e.preventDefault()
+        return
+      }
+      const step = e.shiftKey ? 10 : 1
+      let dx = 0
+      let dy = 0
+      if (e.key === 'ArrowUp') dy = -step
+      else if (e.key === 'ArrowDown') dy = step
+      else if (e.key === 'ArrowLeft') dx = -step
+      else if (e.key === 'ArrowRight') dx = step
+      if (dx === 0 && dy === 0) return
+      selectedIds.forEach((id) => {
+        const node = nodes.find((n) => n.id === id)
+        if (!node) return
+        updateNode(id, { x: node.x + dx, y: node.y + dy })
+      })
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [nodes, selectedIds, removeNode, setSelection, updateNode])
+
   const handleSelect = (id: string, evt: Konva.KonvaEventObject<unknown>) => {
+    if (tool === 'gpath') {
+      evt.cancelBubble = true
+      return
+    }
     evt.cancelBubble = true
     const rawEvent = evt.evt as MouseEvent | TouchEvent | PointerEvent | undefined
     const isMulti = Boolean(rawEvent && 'shiftKey' in rawEvent && rawEvent.shiftKey)
@@ -87,6 +161,24 @@ export const CanvasStage = () => {
     if (!node) return
     const scaleX = node.scaleX()
     const scaleY = node.scaleY()
+    const targetNode = nodes.find((n) => n.id === id)
+    if (targetNode && targetNode.type === 'gpath') {
+      const lineNode = node as Konva.Line
+      const scaledPoints = targetNode.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }))
+      const absolutePoints = scaledPoints.map((p) => ({ x: lineNode.x() + p.x, y: lineNode.y() + p.y }))
+      const normalized = normalizeGPathPoints(absolutePoints)
+      node.scaleX(1)
+      node.scaleY(1)
+      updateNode(id, {
+        x: normalized.origin.x,
+        y: normalized.origin.y,
+        rotation: node.rotation(),
+        width: normalized.width,
+        height: normalized.height,
+        points: normalized.points,
+      })
+      return
+    }
     const nextWidth = Math.max(4, node.width() * scaleX)
     const nextHeight = Math.max(4, node.height() * scaleY)
     node.scaleX(1)
@@ -107,17 +199,46 @@ export const CanvasStage = () => {
   useEffect(() => {
     const transformer = transformerRef.current
     if (!transformer) return
-    const selectedNodes = selectedIds.map((id) => shapeRefs.current[id]).filter(Boolean) as Konva.Node[]
+    const selectedNodes = selectedIds
+      .map((id) => shapeRefs.current[id])
+      .filter((node) => node && !(node instanceof Konva.Line && (node as any).attrs?.dataType === 'gpath')) as Konva.Node[]
     transformer.nodes(selectedNodes)
     transformer.getLayer()?.batchDraw()
+  }, [selectedIds, nodes])
+
+  useEffect(() => {
+    selectedIds.forEach((id) => syncTextBounds(id))
   }, [selectedIds, nodes])
 
   const onStageMouseDown = (evt: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     const stageEl = stageRef.current
     const pointer = stageEl?.getPointerPosition()
     if (!stageEl || !pointer) return
-    const isEmpty = evt.target === stageEl
     const normalized = { x: pointer.x / scale, y: pointer.y / scale }
+    if (tool === 'gpath') {
+      const activeExists =
+        activeGPathId && nodes.some((n) => n.id === activeGPathId && n.type === 'gpath')
+      if (!activeGPathId || !activeExists) {
+        const id = addGPath(normalized)
+        setActiveGPathId(id)
+      } else {
+        const node = nodes.find((n): n is GPathNode => n.id === activeGPathId && n.type === 'gpath')
+        if (node && node.points.length > 1) {
+          const first = { x: node.x + node.points[0].x, y: node.y + node.points[0].y }
+          const dist = Math.hypot(normalized.x - first.x, normalized.y - first.y)
+          if (dist <= closeThreshold) {
+            appendGPathPoint(activeGPathId, first)
+            setTool('select')
+            setActiveGPathId(null)
+            return
+          }
+        }
+        appendGPathPoint(activeGPathId, normalized)
+      }
+      setTool('gpath')
+      return
+    }
+    const isEmpty = evt.target === stageEl || evt.target === backgroundRef.current
     if (!isEmpty) return
     if (tool === 'rect') addRect(normalized.x - 30, normalized.y - 24)
     else if (tool === 'text') addText(normalized.x - 40, normalized.y - 12)
@@ -161,6 +282,9 @@ export const CanvasStage = () => {
               cornerRadius={12}
               onClick={() => setSelection([])}
               onTap={() => setSelection([])}
+              ref={(el) => {
+                backgroundRef.current = el
+              }}
             />
             {displayNodes.map((node) => {
               if (node.type === 'rect') {
@@ -182,6 +306,56 @@ export const CanvasStage = () => {
                     onDragEnd={(e) => handleDrag(node.id, e)}
                     onTransformEnd={() => handleTransform(node.id)}
                   />
+                )
+              }
+              if (node.type === 'gpath') {
+                const selected = selectedIds.includes(node.id)
+                const points = node.points.flatMap((p) => [p.x, p.y])
+                return (
+                  <>
+                    <Line
+                      key={node.id}
+                      ref={(el) => registerRef(node.id, el)}
+                      x={node.x}
+                      y={node.y}
+                      points={points}
+                      stroke={getDisplayColor(node.stroke, aplitePreview)}
+                      strokeWidth={node.strokeWidth || 1}
+                      lineCap="round"
+                      lineJoin="round"
+                      hitStrokeWidth={12}
+                      draggable
+                      rotation={node.rotation}
+                      onClick={handleSelectClick(node.id)}
+                      onTap={handleSelectTap(node.id)}
+                      onDragEnd={(e) => handleDrag(node.id, e)}
+                      onTransformEnd={() => handleTransform(node.id)}
+                      dataType="gpath"
+                    />
+                    {selected && (
+                      <Group x={node.x} y={node.y} rotation={node.rotation} listening={false}>
+                        <Line
+                          points={points}
+                          stroke="#7c3aed"
+                          strokeWidth={Math.max(1, (node.strokeWidth || 1) + 0.5)}
+                          lineCap="round"
+                          lineJoin="round"
+                          dash={[8, 6]}
+                        />
+                        {node.points.map((p, idx) => (
+                          <Circle
+                            key={`${node.id}-pt-${idx}`}
+                            x={p.x}
+                            y={p.y}
+                            radius={4}
+                            fill="#0b0c10"
+                            stroke="#7c3aed"
+                            strokeWidth={1.25}
+                          />
+                        ))}
+                      </Group>
+                    )}
+                  </>
                 )
               }
               if (node.type === 'text') {

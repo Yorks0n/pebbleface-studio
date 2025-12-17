@@ -2,11 +2,12 @@ import { ArrowDownToLine, ArrowUpToLine, Layers, MoveDown, MoveUp, Trash } from 
 import { Button } from './ui/button'
 import { useSceneStore } from '../store/scene'
 
-const typeLabel: Record<'rect' | 'text' | 'bitmap' | 'time', string> = {
+const typeLabel: Record<'rect' | 'text' | 'bitmap' | 'time' | 'gpath', string> = {
   rect: 'Rect',
   text: 'Text',
   time: 'Time/Date',
   bitmap: 'Bitmap',
+  gpath: 'GPath',
 }
 
 export const LayerPanel = () => {
