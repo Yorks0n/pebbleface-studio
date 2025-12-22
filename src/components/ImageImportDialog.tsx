@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Image as KonvaImage, Rect, Transformer } from 'react-konva'
+import { Stage, Layer, Image as KonvaImage, Rect, Path } from 'react-konva'
 import useImage from 'use-image'
-import { Check, X } from 'lucide-react'
+import Konva from 'konva'
+import { Check, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -24,46 +25,37 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [image] = useImage(imageUrl || '', 'anonymous')
   
-  // Crop state (in original image coordinates)
-  const [crop, setCrop] = useState({ x: 0, y: 0, width: 100, height: 100 })
+  // Target output size (The fixed viewport)
+  const [targetSize, setTargetSize] = useState({ width: 144, height: 168 })
+  
+  // Image transformation state
+  const [imgState, setImgState] = useState({ x: 0, y: 0, scale: 1 })
   
   // Stage sizing
   const [stageSize, setStageSize] = useState({ width: 500, height: 400 })
   const containerRef = useRef<HTMLDivElement>(null)
   
-  // Transformer reference
-  const trRef = useRef<any>(null)
-  const shapeRef = useRef<any>(null)
+  const imageLayerRef = useRef<Konva.Layer>(null)
+  const overlayLayerRef = useRef<Konva.Layer>(null)
 
   useEffect(() => {
     if (file) {
       const url = URL.createObjectURL(file)
       setImageUrl(url)
+      // Reset image state when new file loads
+      setImgState({ x: 0, y: 0, scale: 1 })
       return () => URL.revokeObjectURL(url)
     }
   }, [file])
 
   useEffect(() => {
     if (image) {
-      // Initialize crop to full image or reasonable default
-      const initialW = Math.min(image.width, 144)
-      const initialH = Math.min(image.height, 168)
-      setCrop({
-        x: (image.width - initialW) / 2,
-        y: (image.height - initialH) / 2,
-        width: initialW,
-        height: initialH,
-      })
+      // Fit image into target size initially? Or just center it at 100%?
+      // Let's center it.
+      // Reset is handled in file effect, but if image object loads later:
+      setImgState(prev => ({ ...prev, x: 0, y: 0 }))
     }
   }, [image])
-
-  // Update selection transformer when crop changes
-  useEffect(() => {
-    if (isOpen && trRef.current && shapeRef.current) {
-      trRef.current.nodes([shapeRef.current])
-      trRef.current.getLayer().batchDraw()
-    }
-  }, [isOpen, crop])
 
   // Handle resizing the stage based on container
   useEffect(() => {
@@ -77,40 +69,64 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
 
   if (!isOpen || !file || !imageUrl || !image) return null
 
-  // Calculate scale to fit image in stage
-  const scaleX = stageSize.width / image.width
-  const scaleY = stageSize.height / image.height
-  const scale = Math.min(scaleX, scaleY, 1) // Don't upscale
+  // Calculated geometry
+  const stageCenterX = stageSize.width / 2
+  const stageCenterY = stageSize.height / 2
   
-  // Centering offset
-  const offsetX = (stageSize.width - image.width * scale) / 2
-  const offsetY = (stageSize.height - image.height * scale) / 2
+  // The viewport rect (centered on stage)
+  const vpX = stageCenterX - targetSize.width / 2
+  const vpY = stageCenterY - targetSize.height / 2
+
+  // Overlay Path Data (Rectangle with hole)
+  // Outer rectangle: 0 0 width height
+  // Inner rectangle: vpX vpY targetSize.width targetSize.height
+  const overlayPath = `
+    M 0 0 
+    H ${stageSize.width} 
+    V ${stageSize.height} 
+    H 0 
+    Z 
+    M ${vpX} ${vpY} 
+    h ${targetSize.width} 
+    v ${targetSize.height} 
+    h -${targetSize.width} 
+    z
+  `
 
   const handleConfirm = () => {
-    // Create a temporary canvas to perform the crop
-    const canvas = document.createElement('canvas')
-    canvas.width = crop.width
-    canvas.height = crop.height
-    const ctx = canvas.getContext('2d')
+    if (!imageLayerRef.current) return
+
+    // Hide overlay just in case (though it is on separate layer)
+    if (overlayLayerRef.current) overlayLayerRef.current.hide()
     
-    if (ctx && image) {
-      ctx.drawImage(
-        image,
-        crop.x, crop.y, crop.width, crop.height, // Source
-        0, 0, crop.width, crop.height // Dest
-      )
-      const resultDataUrl = canvas.toDataURL('image/png')
-      onConfirm(resultDataUrl, crop.width, crop.height)
-      onClose()
-    }
+    // Capture the area defined by the viewport
+    const dataUrl = imageLayerRef.current.toDataURL({
+      x: vpX,
+      y: vpY,
+      width: targetSize.width,
+      height: targetSize.height,
+      pixelRatio: 1, // Ensure 1:1 pixel mapping for accurate size
+      mimeType: 'image/png'
+    })
+
+    if (overlayLayerRef.current) overlayLayerRef.current.show()
+
+    onConfirm(dataUrl, targetSize.width, targetSize.height)
+    onClose()
   }
 
   const applyPreset = (w: number, h: number) => {
-    setCrop(prev => ({
-      ...prev,
-      width: Math.min(w, image.width),
-      height: Math.min(h, image.height)
-    }))
+    setTargetSize({ width: w, height: h })
+  }
+
+  const handleWheel = (e: any) => {
+    e.evt.preventDefault()
+    const scaleBy = 1.05
+    const oldScale = imgState.scale
+    const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy
+    // Limit scale
+    const clampedScale = Math.min(Math.max(0.1, newScale), 10)
+    setImgState(prev => ({ ...prev, scale: clampedScale }))
   }
 
   return (
@@ -118,138 +134,101 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
       <div className="bg-[#1a1b1e] w-[90vw] max-w-4xl h-[80vh] rounded-xl overflow-hidden flex shadow-2xl border border-white/10">
         
         {/* Left: Canvas Area */}
-        <div className="flex-1 bg-[#101010] relative overflow-hidden" ref={containerRef}>
-          <Stage width={stageSize.width} height={stageSize.height}>
-            <Layer>
-              {/* Background Image */}
+        <div className="flex-1 bg-[#101010] relative overflow-hidden flex flex-col" ref={containerRef}>
+          <div className="absolute top-4 left-4 z-10 bg-black/50 px-3 py-1.5 rounded-md text-xs text-white/70 pointer-events-none backdrop-blur-sm">
+            Scroll to zoom • Drag to move
+          </div>
+          
+          <Stage 
+            width={stageSize.width} 
+            height={stageSize.height}
+            onWheel={handleWheel}
+          >
+            <Layer ref={imageLayerRef}>
+              {/* Checkboard pattern for transparency (Optional, keep simple for now) */}
+              
               <KonvaImage
                 image={image}
-                x={offsetX}
-                y={offsetY}
-                scaleX={scale}
-                scaleY={scale}
-                opacity={0.5} // Dim the full image
-              />
-              
-              {/* Highlighted Crop Area (Image clipped) - Optional, simpler to just use a rectangle outline */}
-              <KonvaImage
-                image={image}
-                x={offsetX}
-                y={offsetY}
-                scaleX={scale}
-                scaleY={scale}
-                crop={{
-                  x: crop.x,
-                  y: crop.y,
-                  width: crop.width,
-                  height: crop.height
-                }}
-              />
-              
-              {/* Crop Rectangle */}
-              <Rect
-                ref={shapeRef}
-                x={offsetX + crop.x * scale}
-                y={offsetY + crop.y * scale}
-                width={crop.width * scale}
-                height={crop.height * scale}
-                stroke="#00f1ff"
-                strokeWidth={1 / scale}
-                dash={[4 / scale, 4 / scale]}
+                // Center the image anchor
+                offset={{ x: image.width / 2, y: image.height / 2 }}
+                // Position at center of stage + user offset
+                x={stageCenterX + imgState.x}
+                y={stageCenterY + imgState.y}
+                scaleX={imgState.scale}
+                scaleY={imgState.scale}
                 draggable
                 onDragMove={(e) => {
-                  // Constrain drag within image bounds
-                  let newX = (e.target.x() - offsetX) / scale
-                  let newY = (e.target.y() - offsetY) / scale
-                  
-                  // Clamp
-                  newX = Math.max(0, Math.min(newX, image.width - crop.width))
-                  newY = Math.max(0, Math.min(newY, image.height - crop.height))
-
-                  setCrop(prev => ({ ...prev, x: newX, y: newY }))
-                  
-                  // Reset visual position to match clamped state
-                  e.target.x(offsetX + newX * scale)
-                  e.target.y(offsetY + newY * scale)
-                }}
-                onTransform={() => {
-                  const node = shapeRef.current
-                  const scaleX = node.scaleX()
-                  const scaleY = node.scaleY()
-                  
-                  // Reset scale to 1 and update width/height instead
-                  node.scaleX(1)
-                  node.scaleY(1)
-                  
-                  const newWidth = Math.max(5, node.width() * scaleX)
-                  const newHeight = Math.max(5, node.height() * scaleY)
-                  
-                  const newX = (node.x() - offsetX) / scale
-                  const newY = (node.y() - offsetY) / scale
-
-                  setCrop({
-                    x: Math.max(0, newX),
-                    y: Math.max(0, newY),
-                    width: newWidth / scale, // Convert back to image coords
-                    height: newHeight / scale
-                  })
-                }}
-              />
-              <Transformer
-                ref={trRef}
-                rotateEnabled={false}
-                boundBoxFunc={(oldBox, newBox) => {
-                  // Limit resize to image bounds would be nice, but simple clamp is ok
-                  if (newBox.width < 5 || newBox.height < 5) return oldBox
-                  return newBox
+                  setImgState(prev => ({
+                    ...prev,
+                    x: e.target.x() - stageCenterX,
+                    y: e.target.y() - stageCenterY
+                  }))
                 }}
               />
             </Layer>
+            
+            <Layer ref={overlayLayerRef} listening={false}>
+              {/* Dark Overlay with hole */}
+              <Path
+                data={overlayPath}
+                fill="rgba(0,0,0,0.7)"
+                fillRule="evenodd"
+              />
+              {/* Border for the hole */}
+              <Rect
+                x={vpX}
+                y={vpY}
+                width={targetSize.width}
+                height={targetSize.height}
+                stroke="#00f1ff"
+                strokeWidth={1}
+                dash={[4, 4]}
+              />
+            </Layer>
           </Stage>
+          
+          {/* Zoom Controls Overlay */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-[#1e1e1e] px-4 py-2 rounded-full border border-white/10 shadow-xl">
+             <ZoomOut size={16} className="text-white/70" />
+             <input 
+               type="range" 
+               min="0.1" 
+               max="3" 
+               step="0.01" 
+               value={imgState.scale}
+               onChange={(e) => setImgState(prev => ({ ...prev, scale: parseFloat(e.target.value) }))}
+               className="w-32 accent-[#00f1ff] h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer"
+             />
+             <ZoomIn size={16} className="text-white/70" />
+             <span className="text-xs text-white/50 w-12 text-right">{Math.round(imgState.scale * 100)}%</span>
+          </div>
         </div>
 
         {/* Right: Controls */}
         <div className="w-80 bg-[#1e1e1e] border-l border-white/10 p-6 flex flex-col gap-6 overflow-y-auto">
           <div>
             <h2 className="text-xl font-bold text-white mb-2">Import Image</h2>
-            <p className="text-sm text-white/50">Adjust crop region before importing.</p>
+            <p className="text-sm text-white/50">Set target size and position image.</p>
           </div>
 
           {/* Size Inputs */}
           <div className="space-y-4">
+            <Label>Target Size</Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Width (px)</Label>
+                <Label className="text-[10px]">Width</Label>
                 <Input
                   type="number"
-                  value={Math.round(crop.width)}
-                  onChange={(e) => setCrop(c => ({ ...c, width: Number(e.target.value) }))}
+                  value={targetSize.width}
+                  onChange={(e) => setTargetSize(s => ({ ...s, width: Number(e.target.value) }))}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Height (px)</Label>
+                <Label className="text-[10px]">Height</Label>
                 <Input
                   type="number"
-                  value={Math.round(crop.height)}
-                  onChange={(e) => setCrop(c => ({ ...c, height: Number(e.target.value) }))}
-                />
-              </div>
-            </div>
-             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>X</Label>
-                <Input
-                  type="number"
-                  value={Math.round(crop.x)}
-                  onChange={(e) => setCrop(c => ({ ...c, x: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Y</Label>
-                <Input
-                  type="number"
-                  value={Math.round(crop.y)}
-                  onChange={(e) => setCrop(c => ({ ...c, y: Number(e.target.value) }))}
+                  value={targetSize.height}
+                  onChange={(e) => setTargetSize(s => ({ ...s, height: Number(e.target.value) }))}
                 />
               </div>
             </div>
