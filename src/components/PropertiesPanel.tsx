@@ -1,5 +1,5 @@
-import { Trash } from 'lucide-react'
-import { useMemo } from 'react'
+import { Trash, Upload } from 'lucide-react'
+import { useMemo, useRef } from 'react'
 import {
   useSceneStore,
   type SceneNode,
@@ -9,7 +9,7 @@ import {
   type TimeNode,
   type GPathNode,
   timeFormatOptions,
-  allowedFonts,
+  SYSTEM_FONTS,
 } from '../store/scene'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -18,10 +18,19 @@ import { ColorSelect } from './ColorSelect'
 
 type SceneNodeKey = keyof (RectNode & TextNode & BitmapNode & TimeNode & GPathNode)
 type TimeKeys = keyof TimeNode
+type FontFilter = 'digits' | 'standard' | 'extended' | 'none'
+
+const FONT_FILTERS: { id: FontFilter; label: string }[] = [
+  { id: 'digits', label: 'Digits only (0-9)' },
+  { id: 'standard', label: 'Digits & Case (Standard)' },
+  { id: 'extended', label: 'Extended (with punctuation)' },
+  { id: 'none', label: 'None (All characters)' },
+]
 
 export const PropertiesPanel = () => {
-  const { nodes, selectedIds, updateNode, removeNode } = useSceneStore()
+  const { nodes, selectedIds, updateNode, removeNode, customFonts, addCustomFont } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const bgTint =
     target && 'fill' in target
       ? (target as RectNode | TextNode | TimeNode).fill
@@ -37,6 +46,88 @@ export const PropertiesPanel = () => {
   const updateTime = (key: TimeKeys, value: TimeNode[TimeKeys]) => {
     if (!target || target.type !== 'time') return
     updateNode(target.id, { [key]: value } as Partial<SceneNode>)
+  }
+
+  // Helper to find the current font object based on node properties
+  const getCurrentFontKey = (node: TextNode | TimeNode) => {
+    if (node.customFontId) return `custom-${node.customFontId}`
+    const found = SYSTEM_FONTS.find(
+      (f) =>
+        f.family === node.fontFamily &&
+        f.size === node.fontSize &&
+        (node.bold === undefined ? !f.label.includes('Bold') : f.label.includes('Bold') === node.bold),
+    )
+    return found ? found.key : SYSTEM_FONTS[0].key
+  }
+
+  const handleFontChange = (key: string, isTime: boolean = false) => {
+    if (key === 'upload-new') {
+      fileInputRef.current?.click()
+      return
+    }
+
+    if (key.startsWith('custom-')) {
+      const id = key.replace('custom-', '')
+      const font = customFonts.find(f => f.id === id)
+      if (font) {
+          fontFamily: font.name,
+          customFontId: id,
+          fontSize: 24, // Default for custom
+          fontFilter: 'extended' // Default
+        }
+        if (isTime) {
+          updateTime('fontFamily', font.name)
+          updateTime('customFontId', id)
+          updateTime('fontSize', 24)
+          updateTime('fontFilter', 'extended' as any)
+        } else {
+          update('fontFamily', font.name)
+          update('customFontId', id)
+          update('fontSize', 24)
+          update('fontFilter', 'extended')
+        }
+      }
+      return
+    }
+
+    const font = SYSTEM_FONTS.find((f) => f.key === key)
+    if (!font) return
+    const isBold = font.label.includes('Bold')
+
+    if (isTime) {
+      updateTime('fontFamily', font.family)
+      updateTime('fontSize', font.size)
+      updateTime('bold', isBold)
+      updateTime('customFontId', undefined)
+    } else {
+      update('fontFamily', font.family)
+      update('fontSize', font.size)
+      update('bold', isBold)
+      update('customFontId', undefined)
+    }
+  }
+  
+  const handleCustomUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const id = await addCustomFont(file)
+    // Auto select newly added font
+    const font = customFonts.find(f => f.id === id) || { name: file.name.split('.')[0] } // fallback name
+    
+    // We need to know if we are editing a Text or Time node to apply properly
+    // This function is outside the render loop context of 'isTime'
+    // But 'target' is available.
+    if (target) {
+       if (target.type === 'text' || target.type === 'time') {
+         updateNode(target.id, {
+           fontFamily: (customFonts.find(f => f.id === id) || { name: file.name.split('.')[0] }).name, // Should match the @font-face name generated in store
+           customFontId: id,
+           fontSize: 24,
+           fontFilter: 'extended'
+         } as any)
+       }
+    }
+    e.target.value = ''
   }
 
   if (!target) {
@@ -120,23 +211,48 @@ export const PropertiesPanel = () => {
           <GridPair label="Font">
             <select
               className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
-              value={target.fontFamily}
-              onChange={(e) => update('fontFamily', e.target.value)}
+              value={getCurrentFontKey(target)}
+              onChange={(e) => handleFontChange(e.target.value, false)}
             >
-              {allowedFonts.map((font) => (
-                <option key={font} value={font}>
-                  {font}
-                </option>
-              ))}
+              <optgroup label="System Fonts">
+                {SYSTEM_FONTS.map((font) => (
+                  <option key={font.key} value={font.key}>
+                    {font.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Custom Fonts">
+                 {customFonts.map(font => (
+                   <option key={font.id} value={`custom-${font.id}`}>{font.name}</option>
+                 ))}
+                 <option value="upload-new">+ Upload New...</option>
+              </optgroup>
             </select>
           </GridPair>
-          <GridPair label="Font size">
-            <Input
-              type="number"
-              value={target.fontSize}
-              onChange={(e) => update('fontSize', parseFloat(e.target.value) || 0)}
-            />
-          </GridPair>
+          {target.customFontId && (
+            <>
+              <GridPair label="Size (px)">
+                <Input
+                  type="number"
+                  min={10}
+                  max={48}
+                  value={target.fontSize}
+                  onChange={(e) => update('fontSize', Math.min(48, Math.max(10, parseFloat(e.target.value) || 24)))}
+                />
+              </GridPair>
+              <GridPair label="Filter">
+                <select
+                  className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+                  value={target.fontFilter || 'standard'}
+                  onChange={(e) => update('fontFilter', e.target.value)}
+                >
+                  {FONT_FILTERS.map(f => (
+                    <option key={f.id} value={f.id}>{f.label}</option>
+                  ))}
+                </select>
+              </GridPair>
+            </>
+          )}
         </>
       )}
       {target.type === 'time' && (
@@ -164,26 +280,60 @@ export const PropertiesPanel = () => {
               ))}
             </select>
           </GridPair>
+          {target.format === 'custom' && (
+            <GridPair label="Pattern">
+              <Input
+                value={target.customFormat || ''}
+                placeholder="e.g. yyyy-MM-dd"
+                onChange={(e) => updateTime('customFormat', e.target.value)}
+              />
+            </GridPair>
+          )}
           <GridPair label="Font">
             <select
               className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
-              value={target.fontFamily}
-              onChange={(e) => updateTime('fontFamily', e.target.value)}
+              value={getCurrentFontKey(target)}
+              onChange={(e) => handleFontChange(e.target.value, true)}
             >
-              {allowedFonts.map((font) => (
-                <option key={font} value={font}>
-                  {font}
-                </option>
-              ))}
+               <optgroup label="System Fonts">
+                {SYSTEM_FONTS.map((font) => (
+                  <option key={font.key} value={font.key}>
+                    {font.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Custom Fonts">
+                 {customFonts.map(font => (
+                   <option key={font.id} value={`custom-${font.id}`}>{font.name}</option>
+                 ))}
+                 <option value="upload-new">+ Upload New...</option>
+              </optgroup>
             </select>
           </GridPair>
-          <GridPair label="Font size">
-            <Input
-              type="number"
-              value={target.fontSize}
-              onChange={(e) => updateTime('fontSize', parseFloat(e.target.value) || 0)}
-            />
-          </GridPair>
+          {target.customFontId && (
+            <>
+              <GridPair label="Size (px)">
+                <Input
+                  type="number"
+                  min={10}
+                  max={48}
+                  value={target.fontSize}
+                  onChange={(e) => updateTime('fontSize', Math.min(48, Math.max(10, parseFloat(e.target.value) || 24)))}
+                />
+              </GridPair>
+              <GridPair label="Filter">
+                <select
+                  className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+                  value={target.fontFilter || 'standard'}
+                  onChange={(e) => updateTime('fontFilter', e.target.value as any)}
+                >
+                  {FONT_FILTERS.map(f => (
+                    <option key={f.id} value={f.id}>{f.label}</option>
+                  ))}
+                </select>
+              </GridPair>
+            </>
+          )}
         </>
       )}
       {target.type === 'bitmap' && (
@@ -196,9 +346,17 @@ export const PropertiesPanel = () => {
           <div className="text-sm text-white/80">{target.points.length}</div>
         </GridPair>
       )}
+      <input
+        type="file"
+        accept=".ttf,.otf,.woff"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleCustomUpload}
+      />
     </div>
   )
 }
+
 
 const GridPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="grid grid-cols-[90px_1fr] items-center gap-3">

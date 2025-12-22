@@ -10,6 +10,7 @@ import {
   type TimeNode,
   normalizeGPathPoints,
   type GPathNode,
+  dateParts,
 } from '../store/scene'
 import { useState } from 'react'
 
@@ -250,6 +251,9 @@ export const CanvasStage = () => {
 
   const displayNodes = useMemo(() => nodes, [nodes])
   const formatTimeNode = (node: TimeNode) => {
+    if (node.format === 'custom') {
+      return dateParts(now, node.customFormat || '')
+    }
     const options = timeFormatOptions[node.text]
     const fmt = options.find((o) => o.id === node.format) || options[0]
     return fmt ? fmt.formatter(now) : ''

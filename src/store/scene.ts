@@ -22,12 +22,17 @@ export type RectNode = BaseNode & {
   fill: string
 }
 
+export type FontFilter = 'digits' | 'standard' | 'extended' | 'none'
+
 export type TextNode = BaseNode & {
   type: 'text'
   fill: string
   text: string
   fontSize: number
   fontFamily: string
+  bold?: boolean
+  customFontId?: string
+  fontFilter?: FontFilter
 }
 
 export type TimeNode = BaseNode & {
@@ -35,8 +40,12 @@ export type TimeNode = BaseNode & {
   fill: string
   text: 'time' | 'date'
   format: TimeFormatId
+  customFormat?: string
   fontSize: number
   fontFamily: string
+  bold?: boolean
+  customFontId?: string
+  fontFilter?: FontFilter
 }
 
 export type BitmapNode = BaseNode & {
@@ -63,9 +72,18 @@ export type TimeFormatId =
   | 'MMM D, YYYY'
   | 'DD/MM/YYYY'
   | 'MM/DD/YYYY'
+  | 'custom'
+
+export type CustomFont = {
+  id: string
+  name: string
+  file: File
+  dataUrl: string // For previewing in browser (loaded as @font-face)
+}
 
 export type SceneState = {
   nodes: SceneNode[]
+  customFonts: CustomFont[]
   selectedIds: string[]
   tool: Tool
   aplitePreview: boolean
@@ -80,6 +98,7 @@ export type SceneState = {
   addText: (x: number, y: number) => void
   addTimeText: (x: number, y: number) => void
   addBitmap: (node: Omit<BitmapNode, keyof BaseNode | 'type'> & Partial<BaseNode>) => void
+  addCustomFont: (file: File) => Promise<string>
   addGPath: (point: { x: number; y: number }) => string
   appendGPathPoint: (id: string, point: { x: number; y: number }) => void
   updateNode: (id: string, data: Partial<SceneNode>) => void
@@ -88,6 +107,44 @@ export type SceneState = {
 }
 
 export const allowedFonts = ['Raster Gothic', 'Gotham (Bitham)', 'Droid Serif', 'LECO 1976']
+
+export type PebbleFont = {
+  label: string
+  family: string
+  size: number
+  key: string
+}
+
+export const SYSTEM_FONTS: PebbleFont[] = [
+  // Raster Gothic
+  { label: 'Gothic 14', family: 'Raster Gothic', size: 14, key: 'FONT_KEY_GOTHIC_14' },
+  { label: 'Gothic 14 Bold', family: 'Raster Gothic', size: 14, key: 'FONT_KEY_GOTHIC_14_BOLD' },
+  { label: 'Gothic 18', family: 'Raster Gothic', size: 18, key: 'FONT_KEY_GOTHIC_18' },
+  { label: 'Gothic 18 Bold', family: 'Raster Gothic', size: 18, key: 'FONT_KEY_GOTHIC_18_BOLD' },
+  { label: 'Gothic 24', family: 'Raster Gothic', size: 24, key: 'FONT_KEY_GOTHIC_24' },
+  { label: 'Gothic 24 Bold', family: 'Raster Gothic', size: 24, key: 'FONT_KEY_GOTHIC_24_BOLD' },
+  { label: 'Gothic 28', family: 'Raster Gothic', size: 28, key: 'FONT_KEY_GOTHIC_28' },
+  { label: 'Gothic 28 Bold', family: 'Raster Gothic', size: 28, key: 'FONT_KEY_GOTHIC_28_BOLD' },
+  
+  // Bitham
+  { label: 'Bitham 30 Black', family: 'Gotham (Bitham)', size: 30, key: 'FONT_KEY_BITHAM_30_BLACK' },
+  { label: 'Bitham 34 Medium (Numbers)', family: 'Gotham (Bitham)', size: 34, key: 'FONT_KEY_BITHAM_34_MEDIUM_NUMBERS' },
+  { label: 'Bitham 42 Bold (Numbers)', family: 'Gotham (Bitham)', size: 42, key: 'FONT_KEY_BITHAM_42_BOLD' },
+  { label: 'Bitham 42 Light (Numbers)', family: 'Gotham (Bitham)', size: 42, key: 'FONT_KEY_BITHAM_42_LIGHT' },
+  { label: 'Bitham 42 Medium (Numbers)', family: 'Gotham (Bitham)', size: 42, key: 'FONT_KEY_BITHAM_42_MEDIUM_NUMBERS' },
+
+  // Droid Serif
+  { label: 'Droid Serif 28 Bold', family: 'Droid Serif', size: 28, key: 'FONT_KEY_DROID_SERIF_28_BOLD' },
+
+  // LECO
+  { label: 'LECO 20 Bold (Numbers)', family: 'LECO 1976', size: 20, key: 'FONT_KEY_LECO_20_BOLD_NUMBERS' },
+  { label: 'LECO 26 Bold (Numbers AM/PM)', family: 'LECO 1976', size: 26, key: 'FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM' },
+  { label: 'LECO 28 Light (Numbers)', family: 'LECO 1976', size: 28, key: 'FONT_KEY_LECO_28_LIGHT_NUMBERS' },
+  { label: 'LECO 32 Bold (Numbers)', family: 'LECO 1976', size: 32, key: 'FONT_KEY_LECO_32_BOLD_NUMBERS' },
+  { label: 'LECO 36 Bold (Numbers)', family: 'LECO 1976', size: 36, key: 'FONT_KEY_LECO_36_BOLD_NUMBERS' },
+  { label: 'LECO 38 Bold (Numbers)', family: 'LECO 1976', size: 38, key: 'FONT_KEY_LECO_38_BOLD_NUMBERS' },
+  { label: 'LECO 42 (Numbers)', family: 'LECO 1976', size: 42, key: 'FONT_KEY_LECO_42_NUMBERS' },
+]
 
 export const useSceneStore = create<SceneState>((set, get) => ({
   nodes: [
@@ -118,10 +175,12 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       strokeWidth: 0,
       text: 'time',
       format: 'HH:mm',
-      fontFamily: allowedFonts[0],
-      fontSize: 20,
+      fontFamily: SYSTEM_FONTS[0].family,
+      fontSize: SYSTEM_FONTS[0].size,
+      bold: false,
     },
   ],
+  customFonts: [],
   selectedIds: [],
   tool: 'select',
   aplitePreview: false,
@@ -181,8 +240,9 @@ export const useSceneStore = create<SceneState>((set, get) => ({
             stroke: defaultStroke,
             strokeWidth: 0,
             text: 'New text',
-            fontFamily: allowedFonts[0],
-            fontSize: 18,
+            fontFamily: SYSTEM_FONTS[0].family,
+            fontSize: SYSTEM_FONTS[0].size,
+            bold: false,
           },
         ],
         selectedIds: [id],
@@ -209,8 +269,9 @@ export const useSceneStore = create<SceneState>((set, get) => ({
             strokeWidth: 0,
             text: 'time',
             format: 'HH:mm',
-            fontFamily: allowedFonts[0],
-            fontSize: 20,
+            fontFamily: SYSTEM_FONTS[0].family,
+            fontSize: SYSTEM_FONTS[0].size,
+            bold: false,
           },
         ],
         selectedIds: [id],
@@ -244,6 +305,52 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         tool: 'select',
       }
     }),
+  addCustomFont: async (file) => {
+    // Read file as DataURL
+    const reader = new FileReader()
+    const dataUrl = await new Promise<string>((resolve) => {
+      reader.onload = () => resolve(reader.result as string)
+      reader.readAsDataURL(file)
+    })
+    
+    // Create a font-face style to inject into document so Konva can use it
+    const fontName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '')
+    const fontId = uid('font')
+    const style = document.createElement('style')
+    style.textContent = `
+      @font-face {
+        font-family: "${fontName}";
+        src: url("${dataUrl}");
+      }
+    `
+    document.head.appendChild(style)
+    
+    // Wait for font to load? Konva usually needs it loaded.
+    // Simple trick: create a dummy element to force load
+    const div = document.createElement('div')
+    div.style.fontFamily = fontName
+    div.textContent = 'Loading...'
+    div.style.position = 'absolute'
+    div.style.top = '-9999px'
+    document.body.appendChild(div)
+    // Small delay to allow browser layout to pick it up
+    await new Promise(r => setTimeout(r, 100))
+    document.body.removeChild(div)
+
+    set((state) => ({
+      customFonts: [
+        ...state.customFonts,
+        {
+          id: fontId,
+          name: fontName,
+          file,
+          dataUrl
+        }
+      ]
+    }))
+    
+    return fontId
+  },
   addGPath: (point) => {
     const id = uid('gpath')
     set((state) => {
@@ -357,8 +464,12 @@ export const timeFormatOptions: Record<
     { id: 'MM/DD/YYYY', label: 'MM/DD/YYYY', formatter: (d) => dateParts(d, 'MM/dd/yyyy') },
     { id: 'ddd, MMM D', label: 'Wed, Jan 3', formatter: (d) => dateParts(d, 'EEE, MMM d') },
     { id: 'MMM D, YYYY', label: 'Jan 3, 2024', formatter: (d) => dateParts(d, 'MMM d, yyyy') },
+    { id: 'custom', label: 'Custom...', formatter: (d) => '' },
   ],
 }
+
+// Export dateParts so it can be used in components
+export { dateParts }
 
 function fmt(date: Date, opts: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat('en-US', opts).format(date)
@@ -368,13 +479,20 @@ function dateParts(date: Date, pattern: string) {
   const pad = (n: number, l = 2) => n.toString().padStart(l, '0')
   const map: Record<string, string> = {
     yyyy: pad(date.getFullYear(), 4),
+    yy: pad(date.getFullYear() % 100, 2),
+    MMM: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date).toUpperCase(),
+    mmm: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date), // Dec
     MM: pad(date.getMonth() + 1),
+    M: (date.getMonth() + 1).toString(),
     dd: pad(date.getDate()),
-    EEE: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
-    MMM: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date),
     d: date.getDate().toString(),
+    EEE: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
   }
+  // Order matters: match longer tokens first!
+  // MMM before MM before M
+  // mmm before mm (if exists)
+  // yyyy before yy
+  // dd before d
   return pattern
-    .replace(/yyyy|MM|dd|EEE|MMM|d/g, (token) => map[token] || token)
-    .replace(/\/{2,}/g, '/')
+    .replace(/yyyy|yy|MMM|mmm|EEE|MM|M|dd|d/g, (token) => map[token] || token)
 }
