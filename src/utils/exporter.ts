@@ -123,8 +123,6 @@ const randomUuid = () => {
 }
 
 const templateMainC = (nodes: SceneNode[]) => {
-  const rects = nodes.filter((n) => n.type === 'rect')
-  const texts = nodes.filter((n) => n.type === 'text')
   const times = nodes.filter((n) => n.type === 'time') as TimeNode[]
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
   const gpaths = nodes.filter((n) => n.type === 'gpath') as GPathNode[]
@@ -162,27 +160,35 @@ static GPath *s_gpath_${idx};`
     })
     .join('\n')
 
-  const drawRects = rects
+  const drawableGPaths = gpaths.filter((n) => n.points.length > 1)
+
+  const drawAllLayers = nodes
     .map((n) => {
-      const rect = n as unknown as { fill?: string; stroke?: string; strokeWidth?: number }
-      const fillHex = toHexInt(rect.fill || '#000000')
-      const strokeHex = toHexInt(rect.stroke || '#000000')
-      return `
+      if (n.type === 'rect') {
+        const fillHex = toHexInt(n.fill || '#000000')
+        const strokeHex = toHexInt(n.stroke || '#000000')
+        return `
   // ${n.name}
   graphics_context_set_fill_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
   graphics_fill_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), 0, GCornerNone);
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
-  graphics_context_set_stroke_width(ctx, ${Math.max(1, rect.strokeWidth || 1)});
+  graphics_context_set_stroke_width(ctx, ${Math.max(1, n.strokeWidth || 1)});
   graphics_draw_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));`
-    })
-    .join('\n')
+      }
 
-  const drawableGPaths = gpaths.filter((n) => n.points.length > 1)
+      if (n.type === 'bitmap') {
+        const idx = bitmaps.indexOf(n)
+        return `
+  // ${n.name}
+  if (s_bitmaps[${idx}]) {
+    graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));
+  }`
+      }
 
-  const drawGPaths = drawableGPaths
-    .map((n, idx) => {
-      const strokeHex = toHexInt(n.stroke || '#ffffff')
-      return `
+      if (n.type === 'gpath' && n.points.length > 1) {
+        const idx = drawableGPaths.indexOf(n)
+        const strokeHex = toHexInt(n.stroke || '#ffffff')
+        return `
   // ${n.name}
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
   graphics_context_set_stroke_width(ctx, ${Math.max(1, Math.round(n.strokeWidth || 1))});
@@ -190,6 +196,38 @@ static GPath *s_gpath_${idx};`
     gpath_move_to(s_gpath_${idx}, GPoint(${round(n.x)}, ${round(n.y)}));
     gpath_draw_outline(ctx, s_gpath_${idx});
   }`
+      }
+
+      if (n.type === 'text') {
+        const fillHex = toHexInt(n.fill || '#ffffff')
+        return `
+  // ${n.name}
+  graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
+  graphics_draw_text(ctx, "${escapeText(n.text || '')}", font_for("${escapeText(
+          n.fontFamily || '',
+        )}", ${Math.round(n.fontSize || 18)}),
+                     GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);`
+      }
+
+      if (n.type === 'time') {
+        const idx = times.indexOf(n)
+        const fillHex = toHexInt(n.fill || '#ffffff')
+        return `
+  // ${n.name}
+  {
+    char time_buffer_${idx}[32];
+    time_t now_${idx} = time(NULL);
+    struct tm *tick_${idx} = localtime(&now_${idx});
+    strftime(time_buffer_${idx}, sizeof(time_buffer_${idx}), s_time_fmt_${idx}, tick_${idx});
+    graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
+    graphics_draw_text(ctx, time_buffer_${idx}, font_for("${escapeText(n.fontFamily || '')}", ${Math.round(
+          n.fontSize || 18,
+        )}),
+                       GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+  }`
+      }
+
+      return ''
     })
     .join('\n')
 
@@ -213,47 +251,6 @@ static GPath *s_gpath_${idx};`
           )
           .join('')
       : ''
-
-  const drawTexts = texts
-    .map((n) => {
-      const textNode = n as unknown as { fill?: string; fontFamily?: string; fontSize?: number; text?: string }
-      const fillHex = toHexInt(textNode.fill || '#ffffff')
-      return `
-  // ${n.name}
-  graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
-  graphics_draw_text(ctx, "${escapeText(textNode.text || '')}", font_for("${escapeText(
-        textNode.fontFamily || '',
-      )}", ${Math.round(textNode.fontSize || 18)}),
-                     GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);`
-    })
-    .join('\n')
-
-  const drawTimes = times
-    .map((n, idx) => {
-      const fillHex = toHexInt(n.fill || '#ffffff')
-      return `
-  // ${n.name}
-  char time_buffer_${idx}[32];
-  time_t now_${idx} = time(NULL);
-  struct tm *tick_${idx} = localtime(&now_${idx});
-  strftime(time_buffer_${idx}, sizeof(time_buffer_${idx}), s_time_fmt_${idx}, tick_${idx});
-  graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
-  graphics_draw_text(ctx, time_buffer_${idx}, font_for("${escapeText(n.fontFamily || '')}", ${Math.round(
-        n.fontSize || 18,
-      )}),
-                     GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeFill, GTextAlignmentLeft, NULL);`
-    })
-    .join('\n')
-
-  const drawBitmaps = bitmaps
-    .map((n, idx) => {
-      return `
-  // ${n.name}
-  if (s_bitmaps[${idx}]) {
-    graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));
-  }`
-    })
-    .join('\n')
 
   const loadBitmaps =
     bitmaps.length > 0
@@ -311,11 +308,7 @@ ${timeFormats || ''}
 static void layer_update_proc(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, GColorBlack);
   graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
-${drawRects}
-${drawBitmaps}
-${drawGPaths}
-${drawTexts}
-${drawTimes}
+${drawAllLayers}
 }
 
 static void main_window_load(Window *window) {

@@ -1,29 +1,36 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Clock3, Image as ImageIcon, PenTool, Square, Type } from 'lucide-react'
 import { useSceneStore } from '../store/scene'
 import { Button } from './ui/button'
+import { ImageImportDialog } from './ImageImportDialog'
 
 export const Toolbar = () => {
   const { addRect, addText, addTimeText, stage, setTool, tool, setSelection } = useSceneStore()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const addBitmap = useSceneStore((s) => s.addBitmap)
 
-  const handleAddImage = async (file: File) => {
-    const dataUrl = await readFileAsDataURL(file)
-    const size = await getImageSize(dataUrl)
+  const [importFile, setImportFile] = useState<File | null>(null)
+
+  const handleFileSelect = (file: File) => {
+    setImportFile(file)
+  }
+
+  const handleImportConfirm = (dataUrl: string, width: number, height: number) => {
+    if (!importFile) return
     addBitmap({
       dataUrl,
-      file,
-      fileName: file.name,
-      width: Math.min(180, size.width),
-      height: Math.min(180, size.height),
+      file: null, // We used the cropped version, original file object might not match dataUrl content anymore if we wanted to use it for raw resource, but for now dataUrl is source of truth
+      fileName: importFile.name,
+      width,
+      height,
       x: 20,
       y: 20,
-      name: file.name.replace(/\.[^/.]+$/, ''),
+      name: importFile.name.replace(/\.[^/.]+$/, ''),
       rotation: 0,
       stroke: '#000000',
       strokeWidth: 0,
     })
+    setImportFile(null)
   }
 
   const triggerFile = () => fileInputRef.current?.click()
@@ -80,25 +87,19 @@ export const Toolbar = () => {
         onChange={(e) => {
           const file = e.target.files?.[0]
           if (!file) return
-          handleAddImage(file)
+          handleFileSelect(file)
           e.target.value = ''
         }}
+      />
+      
+      <ImageImportDialog 
+        isOpen={!!importFile} 
+        file={importFile} 
+        onClose={() => setImportFile(null)} 
+        onConfirm={handleImportConfirm}
       />
     </div>
   )
 }
 
-const readFileAsDataURL = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 
-const getImageSize = (src: string) =>
-  new Promise<{ width: number; height: number }>((resolve) => {
-    const img = new Image()
-    img.onload = () => resolve({ width: img.width, height: img.height })
-    img.src = src
-  })
