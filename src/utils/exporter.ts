@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
-import { type SceneNode, type BitmapNode, type TimeNode, type GPathNode } from '../store/scene'
+import { useSceneStore, type SceneNode, type BitmapNode, type TimeNode, type GPathNode } from '../store/scene'
 
 type PebbleResource = {
   type: string
@@ -15,6 +15,7 @@ const dataUrlToUint8 = async (dataUrl: string) => {
 }
 
 export async function exportPebbleProject(nodes: SceneNode[], projectName: string) {
+  const targetPlatforms = useSceneStore.getState().targetPlatforms
   const zip = new JSZip()
   const media: PebbleResource[] = []
   const src = zip.folder('src')
@@ -53,14 +54,14 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
   }
 
   src?.file('main.c', templateMainC(nodes))
-  zip.file('package.json', JSON.stringify(templatePebblePackage(projectName, media), null, 2))
+  zip.file('package.json', JSON.stringify(templatePebblePackage(projectName, media, targetPlatforms), null, 2))
   zip.file('wscript', templateWscript)
 
   const blob = await zip.generateAsync({ type: 'blob' })
   saveAs(blob, `${projectName}.zip`)
 }
 
-const templatePebblePackage = (projectName: string, resources: PebbleResource[]) => ({
+const templatePebblePackage = (projectName: string, resources: PebbleResource[], platforms: string[]) => ({
   name: slugify(projectName),
   author: 'Pebble Studio',
   version: '1.0.0',
@@ -72,7 +73,7 @@ const templatePebblePackage = (projectName: string, resources: PebbleResource[])
     uuid: randomUuid(),
     sdkVersion: '3',
     enableMultiJS: true,
-    targetPlatforms: ['aplite', 'basalt', 'chalk', 'diorite', 'emery', 'flint'],
+    targetPlatforms: platforms,
     watchapp: { watchface: true },
     messageKeys: ['dummy'],
     resources: {

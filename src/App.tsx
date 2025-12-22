@@ -8,6 +8,7 @@ import { Switch } from './components/ui/switch'
 import { Button } from './components/ui/button'
 import { useSceneStore } from './store/scene'
 import { exportPebbleProject } from './utils/exporter'
+import { NewProjectWizard } from './components/NewProjectWizard'
 import './index.css'
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
 
   return (
     <div className="min-h-screen p-6 md:p-10 flex flex-col gap-6">
+      <NewProjectWizard />
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">Pebble Face Studio</p>

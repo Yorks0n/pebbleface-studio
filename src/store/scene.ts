@@ -70,6 +70,9 @@ export type SceneState = {
   tool: Tool
   aplitePreview: boolean
   stage: { width: number; height: number }
+  isInitialized: boolean
+  targetPlatforms: string[]
+  setProjectSettings: (width: number, height: number, platforms: string[]) => void
   setTool: (tool: Tool) => void
   toggleAplite: () => void
   setSelection: (ids: string[]) => void
@@ -122,7 +125,16 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   selectedIds: [],
   tool: 'select',
   aplitePreview: false,
-  stage: { width: 200, height: 228 },
+  stage: { width: 144, height: 168 },
+  isInitialized: false,
+  targetPlatforms: ['aplite', 'basalt'],
+  setProjectSettings: (width, height, platforms) =>
+    set({
+      stage: { width, height },
+      targetPlatforms: platforms,
+      isInitialized: true,
+      nodes: [], // Clear default nodes on new project
+    }),
   setTool: (tool) => set({ tool }),
   toggleAplite: () => set((state) => ({ aplitePreview: !state.aplitePreview })),
   setSelection: (ids) => set({ selectedIds: ids }),
