@@ -68,23 +68,20 @@ export const PropertiesPanel = () => {
 
     if (key.startsWith('custom-')) {
       const id = key.replace('custom-', '')
-      const font = customFonts.find(f => f.id === id)
+      const font = customFonts.find((f) => f.id === id)
       if (font) {
-          fontFamily: font.name,
-          customFontId: id,
-          fontSize: 24, // Default for custom
-          fontFilter: 'extended' // Default
-        }
         if (isTime) {
           updateTime('fontFamily', font.name)
           updateTime('customFontId', id)
           updateTime('fontSize', 24)
           updateTime('fontFilter', 'extended' as any)
         } else {
-          update('fontFamily', font.name)
-          update('customFontId', id)
-          update('fontSize', 24)
-          update('fontFilter', 'extended')
+          updateNode(target!.id, {
+            fontFamily: font.name,
+            customFontId: id,
+            fontSize: 24,
+            fontFilter: 'extended',
+          } as any)
         }
       }
       return
@@ -111,16 +108,15 @@ export const PropertiesPanel = () => {
     const file = e.target.files?.[0]
     if (!file) return
     const id = await addCustomFont(file)
-    // Auto select newly added font
-    const font = customFonts.find(f => f.id === id) || { name: file.name.split('.')[0] } // fallback name
     
-    // We need to know if we are editing a Text or Time node to apply properly
-    // This function is outside the render loop context of 'isTime'
-    // But 'target' is available.
-    if (target) {
+    // Access fresh state to get the new font object
+    const freshFonts = useSceneStore.getState().customFonts
+    const font = freshFonts.find(f => f.id === id)
+    
+    if (font && target) {
        if (target.type === 'text' || target.type === 'time') {
          updateNode(target.id, {
-           fontFamily: (customFonts.find(f => f.id === id) || { name: file.name.split('.')[0] }).name, // Should match the @font-face name generated in store
+           fontFamily: font.name,
            customFontId: id,
            fontSize: 24,
            fontFilter: 'extended'
