@@ -17,15 +17,16 @@ export const Toolbar = () => {
 
   const handleImportConfirm = (dataUrl: string, width: number, height: number) => {
     if (!importFile) return
+    const name = importFile.name.replace(/\.[^/.]+$/, '')
     addBitmap({
       dataUrl,
       file: null, // We used the cropped version, original file object might not match dataUrl content anymore if we wanted to use it for raw resource, but for now dataUrl is source of truth
-      fileName: importFile.name,
+      fileName: `${name}.png`,
       width,
       height,
       x: 20,
       y: 20,
-      name: importFile.name.replace(/\.[^/.]+$/, ''),
+      name,
       rotation: 0,
       stroke: '#000000',
       strokeWidth: 0,

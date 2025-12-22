@@ -22,18 +22,33 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
 
   const bitmapNodes = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
   for (const bmp of bitmapNodes) {
-    const fileName = bmp.fileName || `${bmp.name}.png`
+    // Force filename to end with .png
+    const baseName = bmp.fileName ? bmp.fileName.replace(/\.[^/.]+$/, '') : bmp.name
+    const fileName = `${baseName}.png`
     const filePath = `images/${fileName}`
     const resourceName = sanitizeResourceName(bmp.name)
     media.push({ type: 'png', name: resourceName, file: filePath })
+    
     if (res) {
-      if (bmp.file) {
-        const buf = await bmp.file.arrayBuffer()
-        res.file(fileName, buf)
+      let pngData: Uint8Array
+
+      // Strategy: 
+      // 1. If original file exists and is PNG, use it (highest quality).
+      // 2. If dataUrl is PNG, use it.
+      // 3. Otherwise, convert dataUrl to PNG.
+      
+      if (bmp.file && bmp.file.type === 'image/png') {
+         const buf = await bmp.file.arrayBuffer()
+         pngData = new Uint8Array(buf)
+      } else if (bmp.dataUrl.startsWith('data:image/png')) {
+         pngData = await dataUrlToUint8(bmp.dataUrl)
       } else {
-        const buf = await dataUrlToUint8(bmp.dataUrl)
-        res.file(fileName, buf)
+         // Convert non-PNG (jpg, etc) to PNG blob
+         const blob = await imageToPngBlob(bmp.dataUrl)
+         pngData = new Uint8Array(await blob.arrayBuffer())
       }
+      
+      res.file(fileName, pngData)
     }
   }
 
@@ -388,4 +403,31 @@ const strftimeForFormat = (format: TimeNode['format'], kind: TimeNode['text']) =
     default:
       return kind === 'date' ? '%Y-%m-%d' : '%H:%M'
   }
+}
+
+const imageToPngBlob = (src: string): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous' // Enable CORS if needed
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'))
+        return
+      }
+      ctx.drawImage(img, 0, 0)
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob)
+        } else {
+          reject(new Error('Canvas toBlob failed'))
+        }
+      }, 'image/png')
+    }
+    img.onerror = (err) => reject(err)
+    img.src = src
+  })
 }

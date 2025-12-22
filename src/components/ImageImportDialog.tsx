@@ -99,7 +99,7 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
         crop.x, crop.y, crop.width, crop.height, // Source
         0, 0, crop.width, crop.height // Dest
       )
-      const resultDataUrl = canvas.toDataURL(file.type || 'image/png')
+      const resultDataUrl = canvas.toDataURL('image/png')
       onConfirm(resultDataUrl, crop.width, crop.height)
       onClose()
     }
