@@ -1,19 +1,33 @@
-import { useState } from 'react'
-import { Download } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Download, Pencil } from 'lucide-react'
 import { Toolbar } from './components/Toolbar'
 import { CanvasStage } from './components/CanvasStage'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { LayerPanel } from './components/LayerPanel'
 import { Switch } from './components/ui/switch'
 import { Button } from './components/ui/button'
+import { Input } from './components/ui/input'
 import { useSceneStore } from './store/scene'
 import { exportPebbleProject } from './utils/exporter'
 import { NewProjectWizard } from './components/NewProjectWizard'
 import './index.css'
 
 function App() {
-  const { aplitePreview, toggleAplite, nodes, projectName } = useSceneStore()
+  const { aplitePreview, toggleAplite, nodes, projectName, setProjectName } = useSceneStore()
   const [exporting, setExporting] = useState(false)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isEditingName])
+
+  const handleNameBlur = () => {
+    setIsEditingName(false)
+    if (!projectName.trim()) setProjectName('Untitled Project')
+  }
 
   const handleExport = async () => {
     try {
@@ -30,20 +44,42 @@ function App() {
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-black/60">
-            {projectName ? `Project: ${projectName}` : 'Pebble Face Studio'}
+            Pebble Face Studio
           </p>
-          <h1 className="font-display text-3xl md:text-4xl font-semibold">
-            {projectName || 'Visual Editor MVP for Pebble Watchfaces'}
-          </h1>
+          {isEditingName ? (
+            <Input
+              ref={inputRef}
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              onBlur={handleNameBlur}
+              onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+              className="font-display text-3xl md:text-4xl font-semibold h-auto py-1 px-2 -ml-2 border-b-2 border-black rounded-none border-t-0 border-x-0 bg-transparent focus-visible:ring-0 w-[400px]"
+            />
+          ) : (
+            <div className="flex items-center gap-3 group">
+              <h1 className="font-display text-3xl md:text-4xl font-semibold">
+                {projectName || 'Visual Editor MVP for Pebble Watchfaces'}
+              </h1>
+              {projectName && (
+                <button
+                  onClick={() => setIsEditingName(true)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/5 rounded"
+                  title="Rename Project"
+                >
+                  <Pencil size={20} className="text-black/40" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 border border-black bg-white px-3 py-2">
-            <span className="text-sm text-black/80">Aplite monochrome preview</span>
+            <span className="text-sm text-black/80 whitespace-nowrap">Monochrome preview</span>
             <Switch checked={aplitePreview} onClick={toggleAplite} />
           </div>
-          <Button onClick={handleExport} disabled={exporting} size="lg">
+          <Button onClick={handleExport} disabled={exporting} size="lg" className="min-w-[140px]">
             <Download size={16} />
-            {exporting ? 'Exporting...' : 'Export Pebble Project (zip)'}
+            {exporting ? 'Exporting...' : 'Export (zip)'}
           </Button>
         </div>
       </header>

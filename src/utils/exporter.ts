@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { useSceneStore, SYSTEM_FONTS, type SceneNode, type BitmapNode, type TimeNode, type GPathNode, type CustomFont, type FontFilter } from '../store/scene'
+import { randomUuid } from '../lib/utils'
 
 type PebbleResource = {
   type: string
@@ -103,29 +104,32 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
   saveAs(blob, `${projectName}.zip`)
 }
 
-const templatePebblePackage = (projectName: string, resources: PebbleResource[], fonts: any[], platforms: string[]) => ({
-  name: slugify(projectName),
-  author: 'Pebble Studio',
-  version: '1.0.0',
-  keywords: ['pebble-app'],
-  private: true,
-  dependencies: {},
-  pebble: {
-    displayName: projectName,
-    uuid: randomUuid(),
-    sdkVersion: '3',
-    enableMultiJS: true,
-    targetPlatforms: platforms,
-    watchapp: { watchface: true },
-    messageKeys: ['dummy'],
-    resources: {
-      media: [
-        ...resources.map((r) => ({ ...r, type: 'bitmap' })),
-        ...fonts
-      ],
+const templatePebblePackage = (projectName: string, resources: PebbleResource[], fonts: any[], platforms: string[]) => {
+  const store = useSceneStore.getState()
+  return {
+    name: slugify(projectName),
+    author: 'Pebble Studio',
+    version: '1.0.0',
+    keywords: ['pebble-app'],
+    private: true,
+    dependencies: {},
+    pebble: {
+      displayName: projectName,
+      uuid: store.projectUuid || randomUuid(), // Fallback just in case
+      sdkVersion: '3',
+      enableMultiJS: true,
+      targetPlatforms: platforms,
+      watchapp: { watchface: true },
+      messageKeys: ['dummy'],
+      resources: {
+        media: [
+          ...resources.map((r) => ({ ...r, type: 'bitmap' })),
+          ...fonts
+        ],
+      },
     },
-  },
-})
+  }
+}
 
 const templateWscript = `#
 # Pebble default waf script
@@ -176,12 +180,6 @@ def build(ctx):
 `
 
 const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'pebble-app'
-
-const randomUuid = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
-  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
-  return `${s4()}${s4()}-${s4()}-4${s4().substring(1)}-${((8 + Math.random() * 4) | 0).toString(16)}${s4().substring(1)}-${s4()}${s4()}${s4()}`
-}
 
 const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   const texts = nodes.filter((n) => n.type === 'text')

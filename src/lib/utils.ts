@@ -6,10 +6,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function uid(prefix = 'node') {
+  return `${prefix}-${randomUuid()}`
+}
+
+export function randomUuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`
+    return crypto.randomUUID()
   }
-  return `${prefix}-${Math.random().toString(36).slice(2, 8)}`
+  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+  return `${s4()}${s4()}-${s4()}-4${s4().substring(1)}-${((8 + Math.random() * 4) | 0).toString(16)}${s4().substring(1)}-${s4()}${s4()}${s4()}`
 }
 
 export function apliteColor(value: string) {

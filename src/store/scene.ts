@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { apliteColor, uid } from '../lib/utils'
+import { apliteColor, uid, randomUuid } from '../lib/utils'
 import { defaultFill, defaultStroke } from '../lib/color-dict'
 
 export type Tool = 'select' | 'rect' | 'text' | 'image' | 'time' | 'gpath'
@@ -90,8 +90,10 @@ export type SceneState = {
   stage: { width: number; height: number }
   isInitialized: boolean
   projectName: string
+  projectUuid: string
   targetPlatforms: string[]
   setProjectSettings: (width: number, height: number, platforms: string[], name: string) => void
+  setProjectName: (name: string) => void
   setTool: (tool: Tool) => void
   toggleAplite: () => void
   setSelection: (ids: string[]) => void
@@ -191,15 +193,18 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   stage: { width: 144, height: 168 },
   isInitialized: false,
   projectName: '',
+  projectUuid: '',
   targetPlatforms: ['aplite', 'basalt'],
   setProjectSettings: (width, height, platforms, name) =>
     set({
       stage: { width, height },
       targetPlatforms: platforms,
       projectName: name || 'pebble-watchface',
+      projectUuid: randomUuid(),
       isInitialized: true,
       nodes: [], // Clear default nodes on new project
     }),
+  setProjectName: (name) => set({ projectName: name }),
   setTool: (tool) => set({ tool }),
   toggleAplite: () => set((state) => ({ aplitePreview: !state.aplitePreview })),
   setSelection: (ids) => set({ selectedIds: ids }),
