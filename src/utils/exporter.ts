@@ -184,7 +184,6 @@ const randomUuid = () => {
 }
 
 const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
-  const rects = nodes.filter((n) => n.type === 'rect')
   const texts = nodes.filter((n) => n.type === 'text')
   const times = nodes.filter((n) => n.type === 'time') as TimeNode[]
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]

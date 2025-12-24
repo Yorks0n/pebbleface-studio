@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Check, Monitor, Watch } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
 import { useSceneStore } from '../store/scene'
 
 const PLATFORM_GROUPS = {
@@ -32,6 +34,7 @@ const PLATFORM_GROUPS = {
 
 export const NewProjectWizard = () => {
   const { isInitialized, setProjectSettings } = useSceneStore()
+  const [projectName, setProjectName] = useState('My Watchface')
   const [selectedSize, setSelectedSize] = useState<keyof typeof PLATFORM_GROUPS>('basalt')
   const [addEmery, setAddEmery] = useState(false) // When Basalt is selected
   const [addBasalt, setAddBasalt] = useState(false) // When Emery is selected
@@ -49,14 +52,28 @@ export const NewProjectWizard = () => {
       platforms = [...platforms, ...PLATFORM_GROUPS.basalt.platforms]
     }
 
-    setProjectSettings(primary.w, primary.h, platforms)
+    setProjectSettings(primary.w, primary.h, platforms, projectName)
   }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-none">
       <div className="w-full max-w-2xl bg-white border border-black p-8 shadow-none animate-in fade-in zoom-in-95 duration-200 retro-panel">
         <h1 className="text-3xl font-bold text-black mb-2 font-display">New Watchface</h1>
-        <p className="text-black/50 mb-8">Select the target platform size for your project.</p>
+        <p className="text-black/50 mb-8">Set up your new Pebble project.</p>
+
+        {/* Project Name */}
+        <div className="mb-8 space-y-2">
+          <Label htmlFor="project-name" className="text-sm font-semibold uppercase tracking-wider text-black/70">
+            Project Name
+          </Label>
+          <Input
+            id="project-name"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            placeholder="e.g. My Watchface"
+            className="rounded-none border-2 border-black focus-visible:ring-0 text-lg h-12"
+          />
+        </div>
 
         {/* 1. Size Selection */}
         <div className="grid grid-cols-3 gap-4 mb-8">

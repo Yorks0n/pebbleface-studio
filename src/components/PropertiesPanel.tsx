@@ -1,4 +1,4 @@
-import { Trash, Upload } from 'lucide-react'
+import { Trash } from 'lucide-react'
 import { useMemo, useRef } from 'react'
 import {
   useSceneStore,

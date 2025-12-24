@@ -12,13 +12,13 @@ import { NewProjectWizard } from './components/NewProjectWizard'
 import './index.css'
 
 function App() {
-  const { aplitePreview, toggleAplite, nodes } = useSceneStore()
+  const { aplitePreview, toggleAplite, nodes, projectName } = useSceneStore()
   const [exporting, setExporting] = useState(false)
 
   const handleExport = async () => {
     try {
       setExporting(true)
-      await exportPebbleProject(nodes, 'pebble-watchface')
+      await exportPebbleProject(nodes, projectName || 'pebble-watchface')
     } finally {
       setExporting(false)
     }
@@ -29,9 +29,11 @@ function App() {
       <NewProjectWizard />
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-black/60">Pebble Face Studio</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-black/60">
+            {projectName ? `Project: ${projectName}` : 'Pebble Face Studio'}
+          </p>
           <h1 className="font-display text-3xl md:text-4xl font-semibold">
-            Visual Editor MVP for Pebble Watchfaces
+            {projectName || 'Visual Editor MVP for Pebble Watchfaces'}
           </h1>
         </div>
         <div className="flex items-center gap-3">

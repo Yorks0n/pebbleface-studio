@@ -89,8 +89,9 @@ export type SceneState = {
   aplitePreview: boolean
   stage: { width: number; height: number }
   isInitialized: boolean
+  projectName: string
   targetPlatforms: string[]
-  setProjectSettings: (width: number, height: number, platforms: string[]) => void
+  setProjectSettings: (width: number, height: number, platforms: string[], name: string) => void
   setTool: (tool: Tool) => void
   toggleAplite: () => void
   setSelection: (ids: string[]) => void
@@ -186,11 +187,13 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   aplitePreview: false,
   stage: { width: 144, height: 168 },
   isInitialized: false,
+  projectName: '',
   targetPlatforms: ['aplite', 'basalt'],
-  setProjectSettings: (width, height, platforms) =>
+  setProjectSettings: (width, height, platforms, name) =>
     set({
       stage: { width, height },
       targetPlatforms: platforms,
+      projectName: name || 'pebble-watchface',
       isInitialized: true,
       nodes: [], // Clear default nodes on new project
     }),
@@ -464,7 +467,7 @@ export const timeFormatOptions: Record<
     { id: 'MM/DD/YYYY', label: 'MM/DD/YYYY', formatter: (d) => dateParts(d, 'MM/dd/yyyy') },
     { id: 'ddd, MMM D', label: 'Wed, Jan 3', formatter: (d) => dateParts(d, 'EEE, MMM d') },
     { id: 'MMM D, YYYY', label: 'Jan 3, 2024', formatter: (d) => dateParts(d, 'MMM d, yyyy') },
-    { id: 'custom', label: 'Custom...', formatter: (d) => '' },
+    { id: 'custom', label: 'Custom...', formatter: () => '' },
   ],
 }
 
