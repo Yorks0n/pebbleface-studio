@@ -91,9 +91,11 @@ export type SceneState = {
   isInitialized: boolean
   projectName: string
   projectUuid: string
+  backgroundColor: string
   targetPlatforms: string[]
   setProjectSettings: (width: number, height: number, platforms: string[], name: string) => void
   setProjectName: (name: string) => void
+  setBackgroundColor: (color: string) => void
   setTool: (tool: Tool) => void
   toggleAplite: () => void
   setSelection: (ids: string[]) => void
@@ -194,6 +196,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   isInitialized: false,
   projectName: '',
   projectUuid: '',
+  backgroundColor: '#000000',
   targetPlatforms: ['aplite', 'basalt'],
   setProjectSettings: (width, height, platforms, name) =>
     set({
@@ -201,10 +204,12 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       targetPlatforms: platforms,
       projectName: name || 'pebble-watchface',
       projectUuid: randomUuid(),
+      backgroundColor: '#000000',
       isInitialized: true,
       nodes: [], // Clear default nodes on new project
     }),
   setProjectName: (name) => set({ projectName: name }),
+  setBackgroundColor: (color) => set({ backgroundColor: color }),
   setTool: (tool) => set({ tool }),
   toggleAplite: () => set((state) => ({ aplitePreview: !state.aplitePreview })),
   setSelection: (ids) => set({ selectedIds: ids }),

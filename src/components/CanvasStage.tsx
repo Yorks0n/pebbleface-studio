@@ -63,6 +63,7 @@ export const CanvasStage = () => {
     aplitePreview,
     stage,
     setTool,
+    backgroundColor,
   } = useSceneStore()
   const stageRef = useRef<Konva.Stage | null>(null)
   const transformerRef = useRef<Konva.Transformer | null>(null)
@@ -284,7 +285,7 @@ export const CanvasStage = () => {
               y={0}
               width={stage.width}
               height={stage.height}
-              fill="#05060a"
+              fill={getDisplayColor(backgroundColor, aplitePreview)}
               cornerRadius={12}
               onClick={() => setSelection([])}
               onTap={() => setSelection([])}

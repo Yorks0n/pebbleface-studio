@@ -182,6 +182,8 @@ def build(ctx):
 const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'pebble-app'
 
 const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
+  const store = useSceneStore.getState()
+  const backgroundColorHex = toHexInt(store.backgroundColor || '#000000')
   const texts = nodes.filter((n) => n.type === 'text')
   const times = nodes.filter((n) => n.type === 'time') as TimeNode[]
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
@@ -411,7 +413,7 @@ static int32_t deg_to_trig(int32_t degrees) {
 ${timeFormats || ''}
 
 static void layer_update_proc(Layer *layer, GContext *ctx) {
-  graphics_context_set_fill_color(ctx, GColorBlack);
+  graphics_context_set_fill_color(ctx, color_hex(0x${backgroundColorHex.toString(16).padStart(6, '0')}));
   graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
 ${drawAllLayers}
 }

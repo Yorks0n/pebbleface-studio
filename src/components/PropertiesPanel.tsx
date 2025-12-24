@@ -29,7 +29,7 @@ const FONT_FILTERS: { id: FontFilter; label: string }[] = [
 ]
 
 export const PropertiesPanel = () => {
-  const { nodes, selectedIds, updateNode, removeNode, customFonts, addCustomFont } = useSceneStore()
+  const { nodes, selectedIds, updateNode, removeNode, customFonts, addCustomFont, backgroundColor, setBackgroundColor } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -37,7 +37,7 @@ export const PropertiesPanel = () => {
   const bgTint =
     target && 'fill' in target
       ? (target as RectNode | TextNode | TimeNode).fill
-      : '#f0f0f0'
+      : backgroundColor || '#f0f0f0'
       
   const bgStyle = target
     ? { background: `linear-gradient(135deg, ${bgTint}11, #ffffff)` }
@@ -157,8 +157,17 @@ export const PropertiesPanel = () => {
 
   if (!target) {
     return (
-      <div className="border border-black bg-white p-4 text-sm text-black/70">
-        Select an element to edit its properties.
+      <div className="space-y-3 border border-black p-4 bg-white" style={bgStyle}>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <div className="text-sm font-semibold text-black">Background Color</div>
+            <div className="text-xs uppercase text-black/50">BACKGROUND</div>
+          </div>
+        </div>
+        <ColorSelect label="Background" value={backgroundColor} onChange={setBackgroundColor} />
+        <div className="pt-4 text-[10px] text-black/40 italic leading-snug border-t border-black/5">
+          Tip: Select a layer on the canvas to edit its individual properties.
+        </div>
       </div>
     )
   }
