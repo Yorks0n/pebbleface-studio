@@ -1,73 +1,84 @@
-# React + TypeScript + Vite
+# Pebble Face Studio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A visual, modern watchface editor for the Pebble smartwatch ecosystem. Design your watchfaces in the browser and export ready-to-compile C projects for the Pebble SDK.
 
-Currently, two official plugins are available:
+![Version](https://img.shields.io/badge/version-MVP-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+- **Visual Canvas Editor**: Drag, drop, scale, and rotate elements on a pixel-perfect canvas.
+- **Multiple Element Types**:
+  - **Rectangles**: Backgrounds, accents, and shapes.
+  - **Text**: Static text with custom or system fonts.
+  - **Time/Date**: Dynamic time elements with multiple formatting options.
+  - **Bitmaps**: Upload and position PNG images.
+  - **GPaths**: Create custom vector paths and outlines.
+- **Pebble System Fonts**: Full support for standard Pebble fonts including Raster Gothic, Bitham, Roboto, and LECO 1976.
+- **Custom Font Support**: Upload your own `.ttf` or `.otf` files to use in your design.
+- **Monochrome Preview**: Toggle Aplite-style black & white preview to see how your design looks on original Pebble hardware.
+- **Project Management**:
+  - Save and load work-in-progress using the `.pfs` (Pebble Face Studio) file format.
+  - Rename projects on the fly.
+  - Customize the global watchface background color.
+- **Export to SDK**: Download a `.zip` bundle containing a complete Pebble project (`main.c`, `package.json`, `wscript`, and resources) ready for the Pebble SDK.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the ESLint configuration
+- **Framework**: React 18 + Vite
+- **Language**: TypeScript
+- **Canvas Rendering**: [react-konva](https://konvajs.org/docs/react/index.html)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
+- **Styling**: Tailwind CSS + Shadcn UI
+- **Icons**: Lucide React
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Prerequisites
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [pnpm](https://pnpm.io/) (recommended) or npm/yarn
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/pebble-face-studio.git
+   cd pebble-face-studio
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+3. Start the development server:
+   ```bash
+   pnpm dev
+   ```
+
+4. Open your browser to `http://localhost:5173`.
+
+### Building for Production
+
+To create an optimized production build:
+```bash
+pnpm build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## How to Use
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. **New Project**: Select your target platform (Basalt, Chalk, or Emery) and give your project a name.
+2. **Design**: Use the toolbar on the left to add elements. Use the properties panel on the right to tweak coordinates, colors, and font settings.
+3. **Save Progress**: Click **"Save (.pfs)"** to download a local backup of your project. You can resume later by using the "Import" button in the New Project window.
+4. **Export**: Once satisfied, click **"Export (zip)"** to get your Pebble SDK source code.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built for the Pebble enthusiast community.
+- Inspired by the original CloudPebble editor.
+- Custom fonts provided in `@fonts/` are for preview purposes and subject to their respective licenses.
