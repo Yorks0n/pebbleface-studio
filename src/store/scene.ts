@@ -77,8 +77,28 @@ export type TimeFormatId =
 export type CustomFont = {
   id: string
   name: string
-  file: File
+  file: File | null // Nullable for imported projects
   dataUrl: string // For previewing in browser (loaded as @font-face)
+}
+
+export interface ProjectFile {
+  fileType: 'pebble-face-studio-project'
+  version: number
+  timestamp: number
+  meta: {
+    name: string
+    uuid: string
+    targetPlatforms: string[]
+    dimensions: {
+      width: number
+      height: number
+    }
+    backgroundColor: string
+  }
+  resources: {
+    fonts: { id: string; name: string; dataUrl: string }[]
+  }
+  scene: Omit<SceneNode, 'file'>[]
 }
 
 export type SceneState = {
@@ -104,6 +124,7 @@ export type SceneState = {
   addTimeText: (x: number, y: number) => void
   addBitmap: (node: Omit<BitmapNode, keyof BaseNode | 'type'> & Partial<BaseNode>) => void
   addCustomFont: (file: File) => Promise<string>
+  loadProject: (file: ProjectFile) => Promise<void>
   addGPath: (point: { x: number; y: number }) => string
   appendGPathPoint: (id: string, point: { x: number; y: number }) => void
   updateNode: (id: string, data: Partial<SceneNode>) => void
@@ -329,29 +350,10 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       reader.readAsDataURL(file)
     })
     
-    // Create a font-face style to inject into document so Konva can use it
     const fontName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '')
     const fontId = uid('font')
-    const style = document.createElement('style')
-    style.textContent = `
-      @font-face {
-        font-family: "${fontName}";
-        src: url("${dataUrl}");
-      }
-    `
-    document.head.appendChild(style)
     
-    // Wait for font to load? Konva usually needs it loaded.
-    // Simple trick: create a dummy element to force load
-    const div = document.createElement('div')
-    div.style.fontFamily = fontName
-    div.textContent = 'Loading...'
-    div.style.position = 'absolute'
-    div.style.top = '-9999px'
-    document.body.appendChild(div)
-    // Small delay to allow browser layout to pick it up
-    await new Promise(r => setTimeout(r, 100))
-    document.body.removeChild(div)
+    await injectFontFace(fontName, dataUrl)
 
     set((state) => ({
       customFonts: [
@@ -366,6 +368,26 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     }))
     
     return fontId
+  },
+  loadProject: async (file) => {
+    // 1. Restore Fonts
+    for (const font of file.resources.fonts) {
+      await injectFontFace(font.name, font.dataUrl)
+    }
+
+    // 2. Restore State
+    set({
+      projectName: file.meta.name,
+      projectUuid: file.meta.uuid,
+      targetPlatforms: file.meta.targetPlatforms,
+      stage: file.meta.dimensions,
+      backgroundColor: file.meta.backgroundColor,
+      customFonts: file.resources.fonts.map(f => ({ ...f, file: null })),
+      nodes: file.scene.map(n => ({ ...n, file: null })) as SceneNode[],
+      isInitialized: true,
+      selectedIds: [],
+      tool: 'select'
+    })
   },
   addGPath: (point) => {
     const id = uid('gpath')
@@ -511,4 +533,25 @@ function dateParts(date: Date, pattern: string) {
   // dd before d
   return pattern
     .replace(/yyyy|yy|MMM|mmm|EEE|MM|M|dd|d/g, (token) => map[token] || token)
+}
+
+async function injectFontFace(name: string, dataUrl: string) {
+  const style = document.createElement('style')
+  style.textContent = `
+    @font-face {
+      font-family: "${name}";
+      src: url("${dataUrl}");
+    }
+  `
+  document.head.appendChild(style)
+  
+  // Wait for font to load via a dummy element
+  const div = document.createElement('div')
+  div.style.fontFamily = name
+  div.textContent = 'Loading...'
+  div.style.position = 'absolute'
+  div.style.top = '-9999px'
+  document.body.appendChild(div)
+  await new Promise(r => setTimeout(r, 100))
+  document.body.removeChild(div)
 }

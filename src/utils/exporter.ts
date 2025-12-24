@@ -1,6 +1,17 @@
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
-import { useSceneStore, SYSTEM_FONTS, type SceneNode, type BitmapNode, type TimeNode, type GPathNode, type CustomFont, type FontFilter } from '../store/scene'
+import {
+  useSceneStore,
+  SYSTEM_FONTS,
+  type SceneNode,
+  type BitmapNode,
+  type TimeNode,
+  type GPathNode,
+  type TextNode,
+  type CustomFont,
+  type FontFilter,
+  type ProjectFile,
+} from '../store/scene'
 import { randomUuid } from '../lib/utils'
 
 type PebbleResource = {
@@ -30,68 +41,64 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
 
   // Identify used custom fonts and add them to resources
   const usedCustomFonts = new Set<string>()
-  const textNodes = nodes.filter(n => n.type === 'text' || n.type === 'time') as (TextNode | TimeNode)[]
-  
+  const textNodes = nodes.filter((n) => n.type === 'text' || n.type === 'time') as (TextNode | TimeNode)[]
+
   for (const node of textNodes) {
     if (node.customFontId) {
-       const fontDef = customFonts.find(f => f.id === node.customFontId)
-       if (fontDef) {
-         usedCustomFonts.add(node.customFontId)
-         
-         // Generate resource entry for this specific size/filter combo
-         // Pebble requires separate entries for each size
-         const resourceName = `FONT_${sanitizeResourceName(fontDef.name)}_${node.fontSize}`
-         // Check if already added
-         if (!fonts.find(f => f.name === resourceName)) {
-           fonts.push({
-             type: 'font',
-             name: resourceName,
-             file: `fonts/${fontDef.file.name}`,
-             compatibility: '2.7', // Standard
-             characterRegex: getRegexForFilter(node.fontFilter)
-           })
-         }
-       }
+      const fontDef = customFonts.find((f) => f.id === node.customFontId)
+      if (fontDef) {
+        usedCustomFonts.add(node.customFontId)
+
+        // Generate resource entry for this specific size/filter combo
+        const resourceName = `FONT_${sanitizeResourceName(fontDef.name)}_${node.fontSize}`
+        // Check if already added
+        if (!fonts.find((f) => f.name === resourceName)) {
+          fonts.push({
+            type: 'font',
+            name: resourceName,
+            file: `fonts/${fontDef.file?.name || fontDef.name + '.ttf'}`,
+            compatibility: '2.7', // Standard
+            characterRegex: getRegexForFilter(node.fontFilter),
+          })
+        }
+      }
     }
   }
 
   // Write font files
   for (const fontId of usedCustomFonts) {
-    const fontDef = customFonts.find(f => f.id === fontId)
+    const fontDef = customFonts.find((f) => f.id === fontId)
     if (fontDef && fontRes) {
-      const buf = await fontDef.file.arrayBuffer()
-      fontRes.file(fontDef.file.name, buf)
+      if (fontDef.file) {
+        const buf = await fontDef.file.arrayBuffer()
+        fontRes.file(fontDef.file.name, buf)
+      } else {
+        // Handle imported fonts without File object (only dataUrl)
+        const data = await dataUrlToUint8(fontDef.dataUrl)
+        fontRes.file(`${fontDef.name}.ttf`, data)
+      }
     }
   }
 
   const bitmapNodes = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
   for (const bmp of bitmapNodes) {
-    // Force filename to end with .png
     const baseName = bmp.fileName ? bmp.fileName.replace(/\.[^/.]+$/, '') : bmp.name
     const fileName = `${baseName}.png`
     const filePath = `images/${fileName}`
     const resourceName = sanitizeResourceName(bmp.name)
     media.push({ type: 'png', name: resourceName, file: filePath })
-    
+
     if (res) {
       let pngData: Uint8Array
-
-      // Strategy: 
-      // 1. If original file exists and is PNG, use it (highest quality).
-      // 2. If dataUrl is PNG, use it.
-      // 3. Otherwise, convert dataUrl to PNG.
-      
       if (bmp.file && bmp.file.type === 'image/png') {
-         const buf = await bmp.file.arrayBuffer()
-         pngData = new Uint8Array(buf)
+        const buf = await bmp.file.arrayBuffer()
+        pngData = new Uint8Array(buf)
       } else if (bmp.dataUrl.startsWith('data:image/png')) {
-         pngData = await dataUrlToUint8(bmp.dataUrl)
+        pngData = await dataUrlToUint8(bmp.dataUrl)
       } else {
-         // Convert non-PNG (jpg, etc) to PNG blob
-         const blob = await imageToPngBlob(bmp.dataUrl)
-         pngData = new Uint8Array(await blob.arrayBuffer())
+        const blob = await imageToPngBlob(bmp.dataUrl)
+        pngData = new Uint8Array(await blob.arrayBuffer())
       }
-      
       res.file(fileName, pngData)
     }
   }
@@ -102,6 +109,34 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
 
   const blob = await zip.generateAsync({ type: 'blob' })
   saveAs(blob, `${projectName}.zip`)
+}
+
+export function saveProjectFile() {
+  const store = useSceneStore.getState()
+
+  const project: ProjectFile = {
+    fileType: 'pebble-face-studio-project',
+    version: 1,
+    timestamp: Date.now(),
+    meta: {
+      name: store.projectName,
+      uuid: store.projectUuid,
+      targetPlatforms: store.targetPlatforms,
+      dimensions: store.stage,
+      backgroundColor: store.backgroundColor,
+    },
+    resources: {
+      fonts: store.customFonts.map(({ id, name, dataUrl }) => ({ id, name, dataUrl })),
+    },
+    scene: store.nodes.map((node) => {
+      const { ...rest } = node
+      if ('file' in (rest as any)) delete (rest as any).file
+      return rest as any
+    }),
+  }
+
+  const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' })
+  saveAs(blob, `${store.projectName || 'project'}.pfs`)
 }
 
 const templatePebblePackage = (projectName: string, resources: PebbleResource[], fonts: any[], platforms: string[]) => {
@@ -115,17 +150,14 @@ const templatePebblePackage = (projectName: string, resources: PebbleResource[],
     dependencies: {},
     pebble: {
       displayName: projectName,
-      uuid: store.projectUuid || randomUuid(), // Fallback just in case
+      uuid: store.projectUuid || randomUuid(),
       sdkVersion: '3',
       enableMultiJS: true,
       targetPlatforms: platforms,
       watchapp: { watchface: true },
       messageKeys: ['dummy'],
       resources: {
-        media: [
-          ...resources.map((r) => ({ ...r, type: 'bitmap' })),
-          ...fonts
-        ],
+        media: [...resources.map((r) => ({ ...r, type: 'bitmap' })), ...fonts],
       },
     },
   }
@@ -194,9 +226,7 @@ const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   const timeFormats = times
     .map((t, idx) => {
       const fmtStr =
-        t.format === 'custom'
-          ? convertCustomFormatToStrftime(t.customFormat || '')
-          : strftimeForFormat(t.format, t.text)
+        t.format === 'custom' ? convertCustomFormatToStrftime(t.customFormat || '') : strftimeForFormat(t.format, t.text)
       return `static const char *s_time_fmt_${idx} = "${fmtStr}";`
     })
     .join('\n')
@@ -208,54 +238,43 @@ static GBitmap *s_bitmaps[${bitmaps.length}];
 static const uint32_t s_bitmap_res_ids[${bitmaps.length}] = { ${bitmapResIds.join(', ')} };`
       : ''
 
-  // Generate Font loading code?
-  // Pebble standard: fonts_get_system_font(KEY)
-  // Pebble custom: fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_NAME_SIZE))
-  // We need to declare custom font pointers if used.
-  
-  // Find all used custom font resources (unique by ID + Size)
   const usedCustomFontKeys = new Set<string>()
   const customFontDecls: string[] = []
   const customFontLoads: string[] = []
   const customFontUnloads: string[] = []
-  
-  // Helper to generate a unique var name for a font instance
-  // e.g. s_font_myfont_24
+
   const getCustomFontVarName = (n: TextNode | TimeNode) => {
     if (!n.customFontId) return null
-    const fontDef = customFonts.find(f => f.id === n.customFontId)
+    const fontDef = customFonts.find((f) => f.id === n.customFontId)
     if (!fontDef) return null
     return `s_font_${sanitizeResourceName(fontDef.name)}_${n.fontSize}`
   }
-  
+
   const getCustomFontResourceId = (n: TextNode | TimeNode) => {
     if (!n.customFontId) return null
-    const fontDef = customFonts.find(f => f.id === n.customFontId)
+    const fontDef = customFonts.find((f) => f.id === n.customFontId)
     if (!fontDef) return null
     return `RESOURCE_ID_FONT_${sanitizeResourceName(fontDef.name)}_${n.fontSize}`
   }
 
   const allTextNodes = [...texts, ...times] as (TextNode | TimeNode)[]
-  
-  allTextNodes.forEach(n => {
-     if (n.customFontId) {
-       const varName = getCustomFontVarName(n)
-       if (varName && !usedCustomFontKeys.has(varName)) {
-         usedCustomFontKeys.add(varName)
-         customFontDecls.push(`static GFont ${varName};`)
-         customFontLoads.push(`  ${varName} = fonts_load_custom_font(resource_get_handle(${getCustomFontResourceId(n)}));`)
-         customFontUnloads.push(`  fonts_unload_custom_font(${varName});`)
-       }
-     }
-  })
 
+  allTextNodes.forEach((n) => {
+    if (n.customFontId) {
+      const varName = getCustomFontVarName(n)
+      if (varName && !usedCustomFontKeys.has(varName)) {
+        usedCustomFontKeys.add(varName)
+        customFontDecls.push(`static GFont ${varName};`)
+        customFontLoads.push(`  ${varName} = fonts_load_custom_font(resource_get_handle(${getCustomFontResourceId(n)}));`)
+        customFontUnloads.push(`  fonts_unload_custom_font(${varName});`)
+      }
+    }
+  })
 
   const gpathPointArrays = gpaths
     .filter((n) => n.points.length > 1)
     .map((n, idx) => {
-      const points = n.points
-        .map((p) => `  { ${round(p.x)}, ${round(p.y)} }`)
-        .join(',\n')
+      const points = n.points.map((p) => `  { ${round(p.x)}, ${round(p.y)} }`).join(',\n')
       return `
 static GPoint s_gpath_points_${idx}[] = {
 ${points}
@@ -310,9 +329,9 @@ static GPath *s_gpath_${idx};`
 
       if (n.type === 'text') {
         const fillHex = toHexInt(n.fill || '#ffffff')
-        const fontExpr = n.customFontId 
-           ? getCustomFontVarName(n) 
-           : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
+        const fontExpr = n.customFontId
+          ? getCustomFontVarName(n)
+          : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
 
         return `
   // ${n.name}
@@ -324,9 +343,9 @@ static GPath *s_gpath_${idx};`
       if (n.type === 'time') {
         const idx = times.indexOf(n)
         const fillHex = toHexInt(n.fill || '#ffffff')
-        const fontExpr = n.customFontId 
-           ? getCustomFontVarName(n) 
-           : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
+        const fontExpr = n.customFontId
+          ? getCustomFontVarName(n)
+          : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
 
         return `
   // ${n.name}
@@ -503,8 +522,8 @@ const getRegexForFilter = (filter?: FontFilter) => {
   switch (filter) {
     case 'digits':
       return '[0-9:]'
-    case 'standard': // Digits & Case
-      return '[0-9a-zA-Z]' 
+    case 'standard':
+      return '[0-9a-zA-Z]'
     case 'extended':
       return '[0-9a-zA-Z:,.\\/\\- ]' // Basic punctuation for dates/times
     case 'none':
@@ -515,81 +534,28 @@ const getRegexForFilter = (filter?: FontFilter) => {
 }
 
 const convertCustomFormatToStrftime = (custom: string) => {
-  // Map custom tokens to strftime
-  // yyyy -> %Y, yy -> %y
-  // MMM -> %b (Abbreviated month name) -- But Pebble %b is usually standard. Wait, user wants DEC vs Dec.
-  // Pebble's standard C library strftime:
-  // %b - Abbreviated month name (Jan)
-  // %B - Full month name (January)
-  // %m - Month (01-12)
-  // %d - Day of month (01-31)
-  // %e - Day of month (1-31) -- Note: padded with space in some libs, but usually preferred for single digit
-  // %H - 24h
-  // %I - 12h
-  // %M - Minute
-  // %S - Second
-  // %p - AM/PM
-  
-  // Custom requirements:
-  // M -> %m (but user said 12, 6. %m is 06. %-m is usually non-standard but often supported. Pebble uses standard newlib.)
-  // Actually Pebble's strftime support is standard.
-  // Let's approximate:
-  // yyyy -> %Y
-  // yy -> %y
-  // MMM -> %b (Dec) -- User asked for MMM=DEC, mmm=Dec.
-  // Standard strftime doesn't have UPPERCASE month abbr. We might need to handle this?
-  // For now, map to closest standard.
-  // MMM -> %b (Dec)
-  // mmm -> %b (Dec)
-  // MM -> %m (12)
-  // M -> %e (Space padded? Or %m?) -- Request says: "12月写为12,6月只写为6". This implies no zero pad. %m is 06.
-  // Pebble newlib strftime doesn't strictly support "no padding" modifier like %-m everywhere, but let's try or just use %m if best effort.
-  // Actually commonly %e is space padded day. Month no-pad is tricky in standard C without custom logic.
-  // Let's map to standard %m for now to ensure safety, or %b.
-  
-  // Actually, wait. User requirement:
-  // M -> 12, 6 (No zero pad)
-  // MM -> 12, 06 (Zero pad)
-  // MMM -> DEC (Uppercase)
-  // mmm -> Dec (Camelcase)
-  // d -> 1, 31 (No zero pad)
-  // dd -> 01, 31 (Zero pad)
-  
-  // Pebble's C strftime limitations:
-  // It doesn't support uppercase forcing (%^b) easily without code.
-  // It doesn't support no-pad month (%-m) easily.
-  // We will map to standard and accept slight deviation or use closest.
-  
   let s = custom
-  
-  // Escape percent signs first if any (unlikely in custom pattern but good practice)
   s = s.replace(/%/g, '%%')
-  
   const map: Record<string, string> = {
     yyyy: '%Y',
     yy: '%y',
-    MMM: '%b', // Will result in Dec, not DEC. To get DEC we'd need C code transformation. For MVP, use %b.
+    MMM: '%b',
     mmm: '%b',
     MM: '%m',
-    M: '%m', // Fallback to %m (06) because %-m isn't standard C89/90 which Pebble is close to.
+    M: '%m',
     dd: '%d',
-    d: '%e', // %e is usually space padded ( 6), which is closer to (6) than (06) visually, but has a space.
+    d: '%e',
   }
-  
-  // Use a tokenizer approach to replace correctly (longest first)
-  // Tokens: yyyy, yy, MMM, mmm, MM, M, dd, d
-  
   s = s.replace(/yyyy|yy|MMM|mmm|MM|M|dd|d/g, (match) => {
     return map[match] || match
   })
-  
   return s
 }
 
 const imageToPngBlob = (src: string): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = 'anonymous' // Enable CORS if needed
+    img.crossOrigin = 'anonymous'
     img.onload = () => {
       const canvas = document.createElement('canvas')
       canvas.width = img.width

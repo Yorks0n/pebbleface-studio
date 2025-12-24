@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Download, Pencil } from 'lucide-react'
+import { Download, Pencil, Save } from 'lucide-react'
 import { Toolbar } from './components/Toolbar'
 import { CanvasStage } from './components/CanvasStage'
 import { PropertiesPanel } from './components/PropertiesPanel'
@@ -8,7 +8,7 @@ import { Switch } from './components/ui/switch'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 import { useSceneStore } from './store/scene'
-import { exportPebbleProject } from './utils/exporter'
+import { exportPebbleProject, saveProjectFile } from './utils/exporter'
 import { NewProjectWizard } from './components/NewProjectWizard'
 import './index.css'
 
@@ -73,6 +73,14 @@ function App() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={saveProjectFile}
+            className="flex items-center gap-2 border border-black bg-white px-3 py-2 h-auto rounded-none hover:bg-[#f0f0f0]"
+          >
+            <Save size={16} />
+            <span className="text-sm text-black/80 whitespace-nowrap font-semibold">Save (.pfs)</span>
+          </Button>
           <div className="flex items-center gap-2 border border-black bg-white px-3 py-2">
             <span className="text-sm text-black/80 whitespace-nowrap">Monochrome preview</span>
             <Switch checked={aplitePreview} onClick={toggleAplite} />

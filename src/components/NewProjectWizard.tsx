@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Check, Upload } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
-import { useSceneStore } from '../store/scene'
+import { useSceneStore, type ProjectFile } from '../store/scene'
 
 const PLATFORM_GROUPS = {
   basalt: {
@@ -33,11 +33,12 @@ const PLATFORM_GROUPS = {
 }
 
 export const NewProjectWizard = () => {
-  const { isInitialized, setProjectSettings } = useSceneStore()
+  const { isInitialized, setProjectSettings, loadProject } = useSceneStore()
   const [projectName, setProjectName] = useState('My Watchface')
   const [selectedSize, setSelectedSize] = useState<keyof typeof PLATFORM_GROUPS>('basalt')
   const [addEmery, setAddEmery] = useState(false) // When Basalt is selected
   const [addBasalt, setAddBasalt] = useState(false) // When Emery is selected
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (isInitialized) return null
 
@@ -55,11 +56,43 @@ export const NewProjectWizard = () => {
     setProjectSettings(primary.w, primary.h, platforms, projectName)
   }
 
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string) as ProjectFile
+        if (json.fileType !== 'pebble-face-studio-project') {
+          alert('Invalid project file')
+          return
+        }
+        await loadProject(json)
+      } catch (err) {
+        console.error(err)
+        alert('Failed to parse project file')
+      }
+    }
+    reader.readAsText(file)
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-none">
       <div className="w-full max-w-2xl bg-white border border-black p-8 shadow-none animate-in fade-in zoom-in-95 duration-200 retro-panel">
-        <h1 className="text-3xl font-bold text-black mb-2 font-display">New Watchface</h1>
-        <p className="text-black/50 mb-8">Set up your new Pebble project.</p>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold text-black font-display">New Watchface</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-none border-2 border-black font-semibold hover:bg-black hover:text-white"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload size={14} className="mr-2" />
+            Import .pfs
+          </Button>
+          <input type="file" accept=".pfs" ref={fileInputRef} className="hidden" onChange={handleImport} />
+        </div>
+        <p className="text-black/50 mb-8">Set up your new Pebble project or resume work.</p>
 
         {/* Project Name */}
         <div className="mb-8 space-y-2">
