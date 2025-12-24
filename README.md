@@ -23,14 +23,6 @@ A visual, modern watchface editor for the Pebble smartwatch ecosystem. Design yo
   - Customize the global watchface background color.
 - **Export to SDK**: Download a `.zip` bundle containing a complete Pebble project (`main.c`, `package.json`, `wscript`, and resources) ready for the Pebble SDK.
 
-## Tech Stack
-
-- **Framework**: React 18 + Vite
-- **Language**: TypeScript
-- **Canvas Rendering**: [react-konva](https://konvajs.org/docs/react/index.html)
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
-- **Styling**: Tailwind CSS + Shadcn UI
-- **Icons**: Lucide React
 
 ## Getting Started
 
@@ -43,7 +35,7 @@ A visual, modern watchface editor for the Pebble smartwatch ecosystem. Design yo
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/pebble-face-studio.git
+   git clone https://github.com/Yorks0n/pebble-face-studio.git
    cd pebble-face-studio
    ```
 
@@ -80,5 +72,4 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 ## Acknowledgments
 
 - Built for the Pebble enthusiast community.
-- Inspired by the original CloudPebble editor.
 - Custom fonts provided in `@fonts/` are for preview purposes and subject to their respective licenses.
