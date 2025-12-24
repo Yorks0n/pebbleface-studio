@@ -1,4 +1,4 @@
-import { Trash } from 'lucide-react'
+import { Trash, AlertCircle } from 'lucide-react'
 import { useMemo, useRef } from 'react'
 import {
   useSceneStore,
@@ -10,6 +10,7 @@ import {
   type GPathNode,
   timeFormatOptions,
   SYSTEM_FONTS,
+  dateParts,
 } from '../store/scene'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -129,6 +130,31 @@ export const PropertiesPanel = () => {
     e.target.value = ''
   }
 
+  const fontWarning = useMemo(() => {
+    if (!target || (target.type !== 'text' && target.type !== 'time')) return null
+    const fontKey = getCurrentFontKey(target as TextNode | TimeNode)
+    const font = SYSTEM_FONTS.find((f) => f.key === fontKey)
+    if (!font || !font.regex) return null
+
+    let text = ''
+    if (target.type === 'text') {
+      text = (target as TextNode).text
+    } else {
+      const tNode = target as TimeNode
+      if (tNode.format === 'custom') {
+        text = dateParts(new Date(), tNode.customFormat || '')
+      } else {
+        const opt = timeFormatOptions[tNode.text].find((o) => o.id === tNode.format)
+        text = opt ? opt.formatter(new Date()) : ''
+      }
+    }
+
+    if (!new RegExp(font.regex).test(text)) {
+      return 'Missing glyphs'
+    }
+    return null
+  }, [target])
+
   if (!target) {
     return (
       <div className="border border-black bg-white p-4 text-sm text-black/70">
@@ -227,6 +253,12 @@ export const PropertiesPanel = () => {
                  <option value="upload-new">+ Upload New...</option>
               </optgroup>
             </select>
+            {fontWarning && (
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-medium leading-tight">
+                <AlertCircle size={10} className="shrink-0" />
+                {fontWarning}
+              </div>
+            )}
           </GridPair>
           {target.customFontId && (
             <>
@@ -308,6 +340,12 @@ export const PropertiesPanel = () => {
                  <option value="upload-new">+ Upload New...</option>
               </optgroup>
             </select>
+            {fontWarning && (
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-medium leading-tight">
+                <AlertCircle size={10} className="shrink-0" />
+                {fontWarning}
+              </div>
+            )}
           </GridPair>
           {target.customFontId && (
             <>

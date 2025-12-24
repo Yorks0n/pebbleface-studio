@@ -114,6 +114,7 @@ export type PebbleFont = {
   family: string
   size: number
   key: string
+  regex?: string
 }
 
 export const SYSTEM_FONTS: PebbleFont[] = [
@@ -128,23 +129,25 @@ export const SYSTEM_FONTS: PebbleFont[] = [
   { label: 'Gothic 28 Bold', family: 'Raster Gothic', size: 28, key: 'FONT_KEY_GOTHIC_28_BOLD' },
   
   // Bitham
-  { label: 'Bitham 30 Black', family: 'Gotham (Bitham)', size: 30, key: 'FONT_KEY_BITHAM_30_BLACK' },
-  { label: 'Bitham 34 Medium (Numbers)', family: 'Gotham (Bitham)', size: 34, key: 'FONT_KEY_BITHAM_34_MEDIUM_NUMBERS' },
-  { label: 'Bitham 42 Bold (Numbers)', family: 'Gotham (Bitham)', size: 42, key: 'FONT_KEY_BITHAM_42_BOLD' },
-  { label: 'Bitham 42 Light (Numbers)', family: 'Gotham (Bitham)', size: 42, key: 'FONT_KEY_BITHAM_42_LIGHT' },
-  { label: 'Bitham 42 Medium (Numbers)', family: 'Gotham (Bitham)', size: 42, key: 'FONT_KEY_BITHAM_42_MEDIUM_NUMBERS' },
+  { label: 'Bitham 30 Black', family: 'Gotham Black', size: 30, key: 'FONT_KEY_BITHAM_30_BLACK' },
+  { label: 'Bitham 34 Medium (Numbers)', family: 'Gotham Medium', size: 34, key: 'FONT_KEY_BITHAM_34_MEDIUM_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
+  { label: 'Bitham 42 Bold', family: 'Gotham Bold', size: 42, key: 'FONT_KEY_BITHAM_42_BOLD' },
+  { label: 'Bitham 42 Light', family: 'Gotham Light', size: 42, key: 'FONT_KEY_BITHAM_42_LIGHT' },
+  { label: 'Bitham 42 Medium (Numbers)', family: 'Gotham Medium', size: 42, key: 'FONT_KEY_BITHAM_42_MEDIUM_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
 
-  // Droid Serif
-  { label: 'Droid Serif 28 Bold', family: 'Droid Serif', size: 28, key: 'FONT_KEY_DROID_SERIF_28_BOLD' },
+  // Droid Serif & Roboto
+  { label: 'Roboto Condensed 21', family: 'Roboto Condensed', size: 21, key: 'FONT_KEY_ROBOTO_CONDENSED_21' },
+  { label: 'Roboto Bold Subset 49', family: 'Roboto Bold', size: 49, key: 'FONT_KEY_ROBOTO_BOLD_SUBSET_49', regex: '^[0-9:\\-\\.\\s]*$' },
+  { label: 'Droid Serif 28 Bold', family: 'Droid Serif Bold', size: 28, key: 'FONT_KEY_DROID_SERIF_28_BOLD' },
 
   // LECO
-  { label: 'LECO 20 Bold (Numbers)', family: 'LECO 1976', size: 20, key: 'FONT_KEY_LECO_20_BOLD_NUMBERS' },
-  { label: 'LECO 26 Bold (Numbers AM/PM)', family: 'LECO 1976', size: 26, key: 'FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM' },
-  { label: 'LECO 28 Light (Numbers)', family: 'LECO 1976', size: 28, key: 'FONT_KEY_LECO_28_LIGHT_NUMBERS' },
-  { label: 'LECO 32 Bold (Numbers)', family: 'LECO 1976', size: 32, key: 'FONT_KEY_LECO_32_BOLD_NUMBERS' },
-  { label: 'LECO 36 Bold (Numbers)', family: 'LECO 1976', size: 36, key: 'FONT_KEY_LECO_36_BOLD_NUMBERS' },
-  { label: 'LECO 38 Bold (Numbers)', family: 'LECO 1976', size: 38, key: 'FONT_KEY_LECO_38_BOLD_NUMBERS' },
-  { label: 'LECO 42 (Numbers)', family: 'LECO 1976', size: 42, key: 'FONT_KEY_LECO_42_NUMBERS' },
+  { label: 'LECO 20 Bold (Numbers)', family: 'LECO 1976', size: 20, key: 'FONT_KEY_LECO_20_BOLD_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
+  { label: 'LECO 26 Bold (Numbers AM/PM)', family: 'LECO 1976', size: 26, key: 'FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM', regex: '^[0-9:\\-\\.\\sAaPpMm]*$' },
+  { label: 'LECO 28 Light (Numbers)', family: 'LECO 1976', size: 28, key: 'FONT_KEY_LECO_28_LIGHT_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
+  { label: 'LECO 32 Bold (Numbers)', family: 'LECO 1976', size: 32, key: 'FONT_KEY_LECO_32_BOLD_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
+  { label: 'LECO 36 Bold (Numbers)', family: 'LECO 1976', size: 36, key: 'FONT_KEY_LECO_36_BOLD_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
+  { label: 'LECO 38 Bold (Numbers)', family: 'LECO 1976', size: 38, key: 'FONT_KEY_LECO_38_BOLD_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
+  { label: 'LECO 42 (Numbers)', family: 'LECO 1976', size: 42, key: 'FONT_KEY_LECO_42_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
 ]
 
 export const useSceneStore = create<SceneState>((set, get) => ({
