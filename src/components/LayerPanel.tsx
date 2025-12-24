@@ -14,8 +14,8 @@ export const LayerPanel = () => {
   const { nodes, moveLayer, selectedIds, setSelection, removeNode } = useSceneStore()
   const ordered = [...nodes].reverse()
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-black">
+    <div className="space-y-2 flex flex-col h-full w-full">
+      <div className="flex items-center gap-2 text-sm font-semibold text-black shrink-0">
         <Layers size={16} />
         Layers
       </div>
@@ -33,8 +33,8 @@ export const LayerPanel = () => {
               tabIndex={0}
             >
               <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-medium text-black">{node.name}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium text-black truncate">{node.name}</span>
                   <span className="text-[11px] uppercase text-black/50">
                     {typeLabel[node.type]} • #{index + 1}
                   </span>

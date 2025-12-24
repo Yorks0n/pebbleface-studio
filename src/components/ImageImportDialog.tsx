@@ -15,7 +15,7 @@ interface ImageImportDialogProps {
 }
 
 const PRESETS = [
-  { label: 'Aplite/Basalt (144x168)', w: 144, h: 168 },
+  { label: 'Basalt (144x168)', w: 144, h: 168 },
   { label: 'Chalk (180x180)', w: 180, h: 180 },
   { label: 'Emery (200x228)', w: 200, h: 228 },
   { label: 'Icon (28x28)', w: 28, h: 28 },
@@ -243,7 +243,7 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
                   key={p.label} 
                   variant="outline" 
                   size="sm" 
-                  className="justify-start h-auto py-2 px-3 text-xs"
+                  className="justify-start h-auto py-2 px-3 text-[10px]"
                   onClick={() => applyPreset(p.w, p.h)}
                 >
                   {p.label}
