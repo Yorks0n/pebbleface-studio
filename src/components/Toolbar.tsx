@@ -47,11 +47,11 @@ export const Toolbar = () => {
 
   return (
     <div className="w-full flex flex-col gap-3">
-      <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-white">
+      <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-black">
         Tools
-        <span className="text-[11px] uppercase text-white/60">Quick Add</span>
+        <span className="text-[11px] uppercase text-black/60">Quick Add</span>
       </div>
-      <div className="glass-panel rounded-2xl p-3 flex flex-wrap items-center gap-2">
+      <div className="retro-panel p-3 flex flex-wrap items-center gap-2">
         <Button variant="subtle" onClick={addRectCentered} size="lg" className="justify-start">
           <Square size={16} />
           Rectangle

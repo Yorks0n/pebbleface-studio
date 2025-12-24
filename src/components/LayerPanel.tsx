@@ -15,7 +15,7 @@ export const LayerPanel = () => {
   const ordered = [...nodes].reverse()
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold">
+      <div className="flex items-center gap-2 text-sm font-semibold text-black">
         <Layers size={16} />
         Layers
       </div>
@@ -25,8 +25,8 @@ export const LayerPanel = () => {
           return (
             <div
               key={node.id}
-              className={`rounded-lg border px-3 py-2 text-sm transition ${
-                isActive ? 'border-indigo-400/80 bg-indigo-500/10' : 'border-white/10 bg-white/5'
+              className={`rounded-none border px-3 py-2 text-sm transition ${
+                isActive ? 'border-black bg-[#eee]' : 'border-[#ddd] bg-white hover:border-[#aaa]'
               }`}
               onClick={() => setSelection([node.id])}
               role="button"
@@ -34,14 +34,14 @@ export const LayerPanel = () => {
             >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="font-medium">{node.name}</span>
-                  <span className="text-[11px] uppercase text-white/50">
+                  <span className="font-medium text-black">{node.name}</span>
+                  <span className="text-[11px] uppercase text-black/50">
                     {typeLabel[node.type]} • #{index + 1}
                   </span>
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <div className="flex gap-0.5">
+                <div className="flex gap-0.5 text-black">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -99,7 +99,7 @@ export const LayerPanel = () => {
                     removeNode(node.id)
                   }}
                   title="Remove"
-                  className="text-red-300 hover:text-red-100 h-8 w-8 p-0"
+                  className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
                 >
                   <Trash size={13} />
                 </Button>

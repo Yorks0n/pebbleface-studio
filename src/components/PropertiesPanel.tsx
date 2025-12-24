@@ -31,13 +31,16 @@ export const PropertiesPanel = () => {
   const { nodes, selectedIds, updateNode, removeNode, customFonts, addCustomFont } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Dynamic background based on element color, but kept light
   const bgTint =
     target && 'fill' in target
       ? (target as RectNode | TextNode | TimeNode).fill
-      : '#0b0d12'
+      : '#f0f0f0'
+      
   const bgStyle = target
-    ? { background: `linear-gradient(135deg, ${bgTint}22, rgba(0,0,0,0.6))` }
-    : { background: 'rgba(255,255,255,0.04)' }
+    ? { background: `linear-gradient(135deg, ${bgTint}11, #ffffff)` }
+    : { background: '#ffffff' }
 
   const update = (key: SceneNodeKey, value: unknown) => {
     if (!target) return
@@ -128,7 +131,7 @@ export const PropertiesPanel = () => {
 
   if (!target) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+      <div className="border border-black bg-white p-4 text-sm text-black/70">
         Select an element to edit its properties.
       </div>
     )
@@ -137,11 +140,11 @@ export const PropertiesPanel = () => {
   const isGPath = target.type === 'gpath'
 
   return (
-    <div className="space-y-3 rounded-2xl border border-white/10 p-4" style={bgStyle}>
+    <div className="space-y-3 border border-black p-4 bg-white" style={bgStyle}>
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold">{target.name}</div>
-          <div className="text-xs uppercase text-white/50">{target.type}</div>
+          <div className="text-sm font-semibold text-black">{target.name}</div>
+          <div className="text-xs uppercase text-black/50">{target.type}</div>
         </div>
         <Button size="icon" variant="ghost" onClick={() => removeNode(target.id)} title="Remove">
           <Trash size={16} />
@@ -206,7 +209,7 @@ export const PropertiesPanel = () => {
           </GridPair>
           <GridPair label="Font">
             <select
-              className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+              className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
               value={getCurrentFontKey(target)}
               onChange={(e) => handleFontChange(e.target.value, false)}
             >
@@ -238,7 +241,7 @@ export const PropertiesPanel = () => {
               </GridPair>
               <GridPair label="Filter">
                 <select
-                  className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+                  className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
                   value={target.fontFilter || 'standard'}
                   onChange={(e) => update('fontFilter', e.target.value)}
                 >
@@ -255,7 +258,7 @@ export const PropertiesPanel = () => {
         <>
           <GridPair label="Type">
             <select
-              className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+              className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
               value={target.text}
               onChange={(e) => updateTime('text', e.target.value as TimeNode['text'])}
             >
@@ -265,7 +268,7 @@ export const PropertiesPanel = () => {
           </GridPair>
           <GridPair label="Format">
             <select
-              className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+              className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
               value={target.format}
               onChange={(e) => updateTime('format', e.target.value as TimeNode['format'])}
             >
@@ -287,7 +290,7 @@ export const PropertiesPanel = () => {
           )}
           <GridPair label="Font">
             <select
-              className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+              className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
               value={getCurrentFontKey(target)}
               onChange={(e) => handleFontChange(e.target.value, true)}
             >
@@ -319,7 +322,7 @@ export const PropertiesPanel = () => {
               </GridPair>
               <GridPair label="Filter">
                 <select
-                  className="h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-sm text-white/80"
+                  className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
                   value={target.fontFilter || 'standard'}
                   onChange={(e) => updateTime('fontFilter', e.target.value as any)}
                 >
@@ -334,12 +337,12 @@ export const PropertiesPanel = () => {
       )}
       {target.type === 'bitmap' && (
         <GridPair label="File">
-          <div className="text-sm text-white/80 truncate">{target.fileName}</div>
+          <div className="text-sm text-black/80 truncate">{target.fileName}</div>
         </GridPair>
       )}
       {target.type === 'gpath' && (
         <GridPair label="Points">
-          <div className="text-sm text-white/80">{target.points.length}</div>
+          <div className="text-sm text-black/80">{target.points.length}</div>
         </GridPair>
       )}
       <input
@@ -356,7 +359,7 @@ export const PropertiesPanel = () => {
 
 const GridPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="grid grid-cols-[90px_1fr] items-center gap-3">
-    <Label className="text-[11px]">{label}</Label>
+    <Label className="text-[11px] text-[#666]">{label}</Label>
     {children}
   </div>
 )

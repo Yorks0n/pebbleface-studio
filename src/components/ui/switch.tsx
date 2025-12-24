@@ -1,30 +1,37 @@
 import * as React from 'react'
 import { cn } from '../../lib/utils'
 
-export interface SwitchProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  checked?: boolean
-}
-
-export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
-  ({ checked, className, ...props }, ref) => (
-    <button
-      ref={ref}
-      role="switch"
-      aria-checked={checked}
+const Switch = React.forwardRef<
+  HTMLInputElement,
+  Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
+    onCheckedChange?: (checked: boolean) => void
+  }
+>(({ className, checked, onCheckedChange, ...props }, ref) => {
+  return (
+    <label
       className={cn(
-        'relative inline-flex h-6 w-11 items-center rounded-full border border-white/10 bg-white/10 transition',
-        checked ? 'bg-indigo-500' : 'bg-white/10',
+        'peer inline-flex h-[20px] w-[36px] shrink-0 cursor-pointer items-center border-2 border-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-white data-[state=checked]:bg-black',
         className,
       )}
-      {...props}
+      data-state={checked ? 'checked' : 'unchecked'}
     >
+      <input
+        type="checkbox"
+        className="sr-only"
+        ref={ref}
+        checked={checked}
+        onChange={(e) => onCheckedChange?.(e.target.checked)}
+        {...props}
+      />
       <span
         className={cn(
-          'inline-block h-5 w-5 transform rounded-full bg-white shadow transition',
-          checked ? 'translate-x-[22px]' : 'translate-x-1',
+          'pointer-events-none block h-3 w-3 bg-current shadow-none ring-0 transition-transform bg-[#ccc] data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0 data-[state=checked]:bg-white',
         )}
+        data-state={checked ? 'checked' : 'unchecked'}
       />
-    </button>
-  ),
-)
+    </label>
+  )
+})
 Switch.displayName = 'Switch'
+
+export { Switch }

@@ -29,14 +29,14 @@ function App() {
       <NewProjectWizard />
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/60">Pebble Face Studio</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-black/60">Pebble Face Studio</p>
           <h1 className="font-display text-3xl md:text-4xl font-semibold">
             Visual Editor MVP for Pebble Watchfaces
           </h1>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-            <span className="text-sm text-white/80">Aplite monochrome preview</span>
+          <div className="flex items-center gap-2 border border-black bg-white px-3 py-2">
+            <span className="text-sm text-black/80">Aplite monochrome preview</span>
             <Switch checked={aplitePreview} onClick={toggleAplite} />
           </div>
           <Button onClick={handleExport} disabled={exporting} size="lg">
@@ -47,14 +47,14 @@ function App() {
       </header>
 
       <main className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr_260px] lg:grid-cols-[240px_1fr_280px] xl:grid-cols-[260px_1fr_300px] items-stretch">
-        <div className="glass-panel rounded-3xl p-4 h-full flex">
+        <div className="retro-panel p-4 h-full flex">
           <LayerPanel />
         </div>
-        <div className="glass-panel rounded-3xl p-3 flex flex-col gap-3 h-full">
+        <div className="retro-panel p-3 flex flex-col gap-3 h-full">
           <CanvasStage />
           <Toolbar />
         </div>
-        <div className="glass-panel rounded-3xl p-4 h-full flex flex-col">
+        <div className="retro-panel p-4 h-full flex flex-col">
           <PropertiesPanel />
         </div>
       </main>

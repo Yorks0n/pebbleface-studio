@@ -261,9 +261,9 @@ export const CanvasStage = () => {
 
   return (
     <div className="relative flex flex-col items-center gap-3">
-      <div className="text-xs uppercase tracking-[0.2em] text-white/70">Canvas 200×228</div>
+      <div className="text-xs uppercase tracking-[0.2em] text-black/70">Canvas 200×228</div>
       <div
-        className="glass-panel rounded-2xl p-3"
+        className="retro-panel p-3"
         style={{
           filter: aplitePreview ? 'grayscale(1) contrast(2)' : 'none',
         }}
@@ -274,7 +274,7 @@ export const CanvasStage = () => {
           scaleX={scale}
           scaleY={scale}
           ref={stageRef}
-          className="bg-[#0b0d12] rounded-xl border border-white/10 shadow-lg shadow-black/40"
+          className="bg-[#0b0d12] border-2 border-[#333] shadow-none"
           onMouseDown={onStageMouseDown}
           onTouchStart={onStageMouseDown}
         >

@@ -53,10 +53,10 @@ export const NewProjectWizard = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
-      <div className="w-full max-w-2xl bg-[#1e1e1e] border border-white/10 rounded-2xl p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <h1 className="text-3xl font-bold text-white mb-2">New Watchface</h1>
-        <p className="text-white/50 mb-8">Select the target platform size for your project.</p>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-none">
+      <div className="w-full max-w-2xl bg-white border border-black p-8 shadow-none animate-in fade-in zoom-in-95 duration-200 retro-panel">
+        <h1 className="text-3xl font-bold text-black mb-2 font-display">New Watchface</h1>
+        <p className="text-black/50 mb-8">Select the target platform size for your project.</p>
 
         {/* 1. Size Selection */}
         <div className="grid grid-cols-3 gap-4 mb-8">
@@ -71,14 +71,14 @@ export const NewProjectWizard = () => {
                   setAddEmery(false)
                   setAddBasalt(false)
                 }}
-                className={`relative flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 transition-all ${
+                className={`relative flex flex-col items-center justify-center gap-3 p-6 border-2 transition-all ${
                   isSelected
-                    ? 'border-[#00f1ff] bg-[#00f1ff]/10'
-                    : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                    ? 'border-black bg-black text-white'
+                    : 'border-[#ccc] bg-white text-black hover:border-black hover:bg-[#f0f0f0]'
                 }`}
               >
                 {isSelected && (
-                  <div className="absolute top-3 right-3 text-[#00f1ff]">
+                  <div className="absolute top-3 right-3 text-white">
                     <Check size={16} strokeWidth={3} />
                   </div>
                 )}
@@ -86,15 +86,15 @@ export const NewProjectWizard = () => {
                   <div className="w-12 h-12 rounded-full border-2 border-current opacity-80" />
                 ) : (
                   <div
-                    className="border-2 border-current opacity-80 rounded-sm"
+                    className="border-2 border-current opacity-80 rounded-none"
                     style={{ width: group.w / 4, height: group.h / 4 }}
                   />
                 )}
                 <div className="text-center">
-                  <div className={`font-semibold ${isSelected ? 'text-white' : 'text-white/70'}`}>
+                  <div className={`font-semibold ${isSelected ? 'text-white' : 'text-black/70'}`}>
                     {group.label}
                   </div>
-                  <div className="text-xs text-white/40 mt-1">{group.desc}</div>
+                  <div className={`text-xs mt-1 ${isSelected ? 'text-white/60' : 'text-black/40'}`}>{group.desc}</div>
                 </div>
               </button>
             )
@@ -102,13 +102,13 @@ export const NewProjectWizard = () => {
         </div>
 
         {/* 2. Compatibility Options */}
-        <div className="mb-8 p-4 bg-black/20 rounded-lg border border-white/5 min-h-[80px]">
-          <h3 className="text-sm font-semibold text-white/80 mb-3 uppercase tracking-wider">
+        <div className="mb-8 p-4 bg-[#f0f0f0] border border-[#ccc] min-h-[80px]">
+          <h3 className="text-sm font-semibold text-black/80 mb-3 uppercase tracking-wider">
             Compatibility
           </h3>
           
           {selectedSize === 'chalk' && (
-            <p className="text-sm text-white/40 italic">
+            <p className="text-sm text-black/40 italic">
               Pebble Time Round (Chalk) projects are exclusive and cannot share a codebase with rectangular watches due to layout differences.
             </p>
           )}
@@ -120,11 +120,11 @@ export const NewProjectWizard = () => {
                 id="add-emery"
                 checked={addEmery}
                 onChange={(e) => setAddEmery(e.target.checked)}
-                className="w-4 h-4 rounded border-white/30 bg-black/50 accent-[#00f1ff]"
+                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
               />
-              <label htmlFor="add-emery" className="text-sm text-white/70 cursor-pointer select-none">
-                Also compatible with <strong className="text-white">Emery (Pebble Time 2)</strong>?
-                <span className="block text-xs text-white/40 mt-0.5">
+              <label htmlFor="add-emery" className="text-sm text-black/70 cursor-pointer select-none">
+                Also compatible with <strong className="text-black">Emery (Pebble Time 2)</strong>?
+                <span className="block text-xs text-black/40 mt-0.5">
                   Canvas will remain 144x168. Emery will center the face or upscale.
                 </span>
               </label>
@@ -138,11 +138,11 @@ export const NewProjectWizard = () => {
                 id="add-basalt"
                 checked={addBasalt}
                 onChange={(e) => setAddBasalt(e.target.checked)}
-                className="w-4 h-4 rounded border-white/30 bg-black/50 accent-[#00f1ff]"
+                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
               />
-              <label htmlFor="add-basalt" className="text-sm text-white/70 cursor-pointer select-none">
-                Also compatible with <strong className="text-white">Standard Rect (144x168)</strong>?
-                <span className="block text-xs text-white/40 mt-0.5">
+              <label htmlFor="add-basalt" className="text-sm text-black/70 cursor-pointer select-none">
+                Also compatible with <strong className="text-black">Standard Rect (144x168)</strong>?
+                <span className="block text-xs text-black/40 mt-0.5">
                   Warning: Design might be cropped on smaller screens.
                 </span>
               </label>
@@ -150,7 +150,7 @@ export const NewProjectWizard = () => {
           )}
         </div>
 
-        <Button onClick={handleCreate} size="lg" className="w-full h-12 text-lg">
+        <Button onClick={handleCreate} size="lg" className="w-full h-12 text-lg rounded-none border-2 border-black bg-black text-white hover:bg-white hover:text-black hover:border-black">
           Create Project
         </Button>
       </div>
