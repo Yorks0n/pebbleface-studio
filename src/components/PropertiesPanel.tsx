@@ -29,19 +29,51 @@ const FONT_FILTERS: { id: FontFilter; label: string }[] = [
 ]
 
 export const PropertiesPanel = () => {
-  const { nodes, selectedIds, updateNode, removeNode, customFonts, addCustomFont, backgroundColor, setBackgroundColor } = useSceneStore()
+  const {
+    nodes,
+    selectedIds,
+    updateNode,
+    removeNode,
+    customFonts,
+    addCustomFont,
+    backgroundColor,
+    setBackgroundColor,
+    targetPlatforms,
+    setTargetPlatforms,
+    stage,
+  } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
+  // Determine primary group based on stage dimensions
+  const isBasalt = stage.width === 144
+  const isEmery = stage.width === 200
+  const isChalk = stage.width === 180
+
+  const handleTogglePlatform = (platform: string, enabled: boolean) => {
+    if (enabled) {
+      setTargetPlatforms([...targetPlatforms, platform])
+    } else {
+      setTargetPlatforms(targetPlatforms.filter((p) => p !== platform))
+    }
+  }
+
+  const handleToggleBasaltGroup = (enabled: boolean) => {
+    const basaltPlatforms = ['aplite', 'basalt', 'diorite', 'flint']
+    if (enabled) {
+      setTargetPlatforms([...new Set([...targetPlatforms, ...basaltPlatforms])])
+    } else {
+      setTargetPlatforms(targetPlatforms.filter((p) => !basaltPlatforms.includes(p)))
+    }
+  }
+
   // Dynamic background based on element color, but kept light
   const bgTint =
     target && 'fill' in target
       ? (target as RectNode | TextNode | TimeNode).fill
       : backgroundColor || '#f0f0f0'
-      
-  const bgStyle = target
-    ? { background: `linear-gradient(135deg, ${bgTint}11, #ffffff)` }
-    : { background: '#ffffff' }
+
+  const bgStyle = target ? { background: `linear-gradient(135deg, ${bgTint}11, #ffffff)` } : { background: '#ffffff' }
 
   const update = (key: SceneNodeKey, value: unknown) => {
     if (!target) return
@@ -107,25 +139,25 @@ export const PropertiesPanel = () => {
       update('customFontId', undefined)
     }
   }
-  
+
   const handleCustomUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const id = await addCustomFont(file)
-    
+
     // Access fresh state to get the new font object
     const freshFonts = useSceneStore.getState().customFonts
-    const font = freshFonts.find(f => f.id === id)
-    
+    const font = freshFonts.find((f) => f.id === id)
+
     if (font && target) {
-       if (target.type === 'text' || target.type === 'time') {
-         updateNode(target.id, {
-           fontFamily: font.name,
-           customFontId: id,
-           fontSize: 24,
-           fontFilter: 'extended'
-         } as any)
-       }
+      if (target.type === 'text' || target.type === 'time') {
+        updateNode(target.id, {
+          fontFamily: font.name,
+          customFontId: id,
+          fontSize: 24,
+          fontFilter: 'extended',
+        } as any)
+      }
     }
     e.target.value = ''
   }
@@ -157,14 +189,70 @@ export const PropertiesPanel = () => {
 
   if (!target) {
     return (
-      <div className="space-y-3 border border-black p-4 bg-white" style={bgStyle}>
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <div className="text-sm font-semibold text-black">Background Color</div>
-            <div className="text-xs uppercase text-black/50">BACKGROUND</div>
+      <div className="space-y-6 border border-black p-4 bg-white" style={bgStyle}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-semibold text-black">Background Color</div>
+              <div className="text-xs uppercase text-black/50">BACKGROUND</div>
+            </div>
+          </div>
+          <ColorSelect label="Background" value={backgroundColor} onChange={setBackgroundColor} />
+        </div>
+
+        <div className="pt-4 border-t border-black/10 space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-semibold text-black">Compatibility</div>
+              <div className="text-xs uppercase text-black/50">PLATFORMS</div>
+            </div>
+          </div>
+
+          <div className="space-y-3 px-1">
+            {isChalk && (
+              <p className="text-[10px] text-black/40 italic leading-snug">
+                Round (Chalk) projects are restricted to their own platform due to layout differences.
+              </p>
+            )}
+
+            {isBasalt && (
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="compat-emery"
+                  checked={targetPlatforms.includes('emery')}
+                  onChange={(e) => handleTogglePlatform('emery', e.target.checked)}
+                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
+                />
+                <label htmlFor="compat-emery" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
+                  Compatible with <strong className="text-black">Emery (Pebble Time 2)</strong>?
+                  <span className="block text-[9px] text-black/40 mt-0.5">
+                    Canvas remains 144x168. Emery will center or upscale.
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {isEmery && (
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="compat-basalt"
+                  checked={targetPlatforms.includes('basalt')}
+                  onChange={(e) => handleToggleBasaltGroup(e.target.checked)}
+                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
+                />
+                <label htmlFor="compat-basalt" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
+                  Compatible with <strong className="text-black">Standard Rect (144x168)</strong>?
+                  <span className="block text-[9px] text-black/40 mt-0.5">
+                    Warning: Design might be cropped on smaller screens.
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
         </div>
-        <ColorSelect label="Background" value={backgroundColor} onChange={setBackgroundColor} />
+
         <div className="pt-4 text-[10px] text-black/40 italic leading-snug border-t border-black/5">
           Tip: Select a layer on the canvas to edit its individual properties.
         </div>

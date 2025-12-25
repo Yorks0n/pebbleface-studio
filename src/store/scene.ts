@@ -115,6 +115,7 @@ export type SceneState = {
   targetPlatforms: string[]
   setProjectSettings: (width: number, height: number, platforms: string[], name: string) => void
   setProjectName: (name: string) => void
+  setTargetPlatforms: (platforms: string[]) => void
   setBackgroundColor: (color: string) => void
   setTool: (tool: Tool) => void
   toggleAplite: () => void
@@ -230,6 +231,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       nodes: [], // Clear default nodes on new project
     }),
   setProjectName: (name) => set({ projectName: name }),
+  setTargetPlatforms: (platforms) => set({ targetPlatforms: platforms }),
   setBackgroundColor: (color) => set({ backgroundColor: color }),
   setTool: (tool) => set({ tool }),
   toggleAplite: () => set((state) => ({ aplitePreview: !state.aplitePreview })),

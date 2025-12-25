@@ -12,6 +12,7 @@ export function filenameFromContentDisposition(cd: string | null) {
 export async function compileAndDownload(params: {
   zip: File | Blob;
   zipName?: string;
+  outputName?: string;
   target?: string;
   timeoutSec?: number;
   maxZipBytes?: number;
@@ -23,6 +24,7 @@ export async function compileAndDownload(params: {
   const {
     zip,
     zipName = "watchface.zip",
+    outputName,
     target,
     timeoutSec,
     maxZipBytes,
@@ -64,7 +66,7 @@ export async function compileAndDownload(params: {
   if (logB64) onLog?.(decodeBase64ToText(logB64));
 
   const blob = await resp.blob();
-  const filename = filenameFromContentDisposition(resp.headers.get("content-disposition"));
+  const filename = outputName || filenameFromContentDisposition(resp.headers.get("content-disposition"));
 
   // 触发下载
   const url = URL.createObjectURL(blob);

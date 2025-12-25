@@ -50,6 +50,7 @@ function App() {
       await compileAndDownload({
         zip: blob,
         zipName: fileName,
+        outputName: `${projectName || 'pebble-watchface'}.pbw`,
         // target removed as it causes backend errors (pebble tool doesn't support --target flag)
         onStatus: setBuildStatus,
         onJob: setJobId,
