@@ -23,31 +23,29 @@ export const ColorSelect = ({ label, value, onChange }: Props) => {
   }, [])
 
   return (
-    <div className="relative space-y-1" ref={ref}>
-      <div className="flex items-center justify-between text-xs uppercase text-white/60">{label}</div>
+    <div className="relative grid grid-cols-[90px_1fr] items-center gap-3" ref={ref}>
+      <div className="text-[11px] text-[#666] uppercase">{label}</div>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-md border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80 hover:border-indigo-400/70 transition"
+        className="flex w-full items-center border border-black bg-white px-3 py-1.5 text-sm text-black hover:bg-[#f0f0f0] transition rounded-none h-9"
       >
-        <span className="flex items-center gap-2">
+        <div className="flex w-full items-center">
           <span
-            className="inline-block h-5 w-5 rounded-full border border-white/20 shadow-inner"
+            className="inline-block h-4 w-full border border-black/20"
             style={{ background: value }}
           />
-          <span className="tracking-wide">{value.toLowerCase()}</span>
-        </span>
-        <span className="text-[11px] text-white/50">Choose</span>
+        </div>
       </button>
       {open && (
-        <div className="absolute z-20 mt-2 w-full rounded-xl border border-white/10 bg-[#0a0c12] p-3 shadow-xl">
-          <div className="grid grid-cols-8 gap-2">
+        <div className="absolute z-20 left-0 right-0 top-full mt-1 border border-black bg-white p-3 shadow-xl">
+          <div className="grid grid-cols-10 gap-1.5">
             {pebbleColors.map((c) => (
               <button
                 key={c.hex}
                 className={cn(
-                  'h-7 rounded-md border border-white/10 transition focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 focus:ring-offset-black',
-                  value === c.hex ? 'ring-2 ring-indigo-400 ring-offset-1 ring-offset-black' : 'hover:translate-y-[-1px]',
+                  'h-6 border border-black/10 transition focus:outline-none focus:ring-1 focus:ring-black focus:ring-offset-1',
+                  value === c.hex ? 'ring-1 ring-black ring-offset-1' : 'hover:scale-110',
                 )}
                 style={{ background: c.hex }}
                 title={`${c.name} (${c.hex})`}
