@@ -16,6 +16,7 @@ tsconfig.tsbuildinfo
 # Env
 .env
 .env.local
+.dev.vars
 
 # Local AI config
 .gemini

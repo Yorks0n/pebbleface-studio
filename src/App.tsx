@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Download, Pencil, Save } from 'lucide-react'
+import { Pencil, Save, Hammer, Terminal, X } from 'lucide-react'
 import { Toolbar } from './components/Toolbar'
 import { CanvasStage } from './components/CanvasStage'
 import { PropertiesPanel } from './components/PropertiesPanel'
@@ -8,16 +8,23 @@ import { Switch } from './components/ui/switch'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 import { useSceneStore } from './store/scene'
-import { saveProjectFile, exportPebbleProject } from './utils/exporter'
+import { generatePebbleProjectZip, saveProjectFile } from './utils/exporter'
+import { compileAndDownload } from './lib/buildClient'
 import { NewProjectWizard } from './components/NewProjectWizard'
 import { FontPreloader } from './components/FontPreloader'
 import './index.css'
 
 function App() {
   const { aplitePreview, toggleAplite, nodes, projectName, setProjectName } = useSceneStore()
-  const [exporting, setExporting] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Build State
+  const [isCompiling, setIsCompiling] = useState(false)
+  const [buildStatus, setBuildStatus] = useState('')
+  const [jobId, setJobId] = useState('')
+  const [buildLog, setBuildLog] = useState('')
+  const [showLog, setShowLog] = useState(false)
 
   useEffect(() => {
     if (isEditingName && inputRef.current) {
@@ -30,12 +37,38 @@ function App() {
     if (!projectName.trim()) setProjectName('Untitled Project')
   }
 
-  const handleExport = async () => {
+  const handleCompile = async () => {
+    if (isCompiling) return
     try {
-      setExporting(true)
-      await exportPebbleProject(nodes, projectName || 'pebble-watchface')
+      setIsCompiling(true)
+      setBuildStatus('Zipping...')
+      setBuildLog('')
+      setJobId('')
+      
+      const { blob, fileName } = await generatePebbleProjectZip(nodes, projectName || 'pebble-watchface')
+      
+      await compileAndDownload({
+        zip: blob,
+        zipName: fileName,
+        target: 'basalt', // Default target
+        onStatus: setBuildStatus,
+        onJob: setJobId,
+        onLog: (log) => {
+          setBuildLog(log)
+          // Don't auto-show log on success unless there is an error? 
+          // Usually we just let user click the log button.
+          // But if it fails, the catch block will alert.
+          // Let's just store it.
+        }
+      })
+      
+      setBuildStatus('Done')
+    } catch (e: any) {
+      setBuildStatus('Error')
+      alert(e.message) // Show error (including Retry-After)
+      if (buildLog) setShowLog(true) // Show log if available on error
     } finally {
-      setExporting(false)
+      setIsCompiling(false)
     }
   }
 
@@ -75,6 +108,10 @@ function App() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 border border-black bg-white px-3 py-2">
+            <span className="text-sm text-black/80 whitespace-nowrap">Monochrome preview</span>
+            <Switch checked={aplitePreview} onClick={toggleAplite} />
+          </div>
           <Button
             variant="outline"
             onClick={saveProjectFile}
@@ -83,14 +120,33 @@ function App() {
             <Save size={16} />
             <span className="text-sm text-black/80 whitespace-nowrap font-semibold">Save (.pfs)</span>
           </Button>
-          <div className="flex items-center gap-2 border border-black bg-white px-3 py-2">
-            <span className="text-sm text-black/80 whitespace-nowrap">Monochrome preview</span>
-            <Switch checked={aplitePreview} onClick={toggleAplite} />
+          
+          <div className="flex items-center gap-1">
+            <Button 
+              onClick={handleCompile} 
+              disabled={isCompiling} 
+              className="flex items-center gap-2 border border-black bg-[#ff4700] text-white hover:bg-[#cc3900] rounded-none h-auto py-2 px-4 font-bold active:translate-y-[1px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Hammer size={16} />
+              {isCompiling ? buildStatus : 'Compile & Download'}
+            </Button>
+            {buildLog && (
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => setShowLog(true)} 
+                title="View Build Log"
+                className="rounded-none border border-black h-auto py-2 w-10 hover:bg-gray-100"
+              >
+                <Terminal size={16} />
+              </Button>
+            )}
           </div>
-          <Button onClick={handleExport} disabled={exporting} size="lg" className="min-w-[140px]">
+
+          {/* <Button onClick={handleExport} disabled={exporting} size="lg" className="min-w-[140px]">
             <Download size={16} />
             {exporting ? 'Exporting...' : 'Export (zip)'}
-          </Button>
+          </Button> */}
         </div>
       </header>
 
@@ -106,6 +162,34 @@ function App() {
           <PropertiesPanel />
         </div>
       </main>
+
+      {showLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-3xl max-h-[80vh] bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b-2 border-black bg-[#f0f0f0]">
+              <div className="flex items-center gap-3">
+                <Terminal size={20} />
+                <h3 className="font-bold text-lg font-display">Build Log</h3>
+                {jobId && <span className="text-xs font-mono bg-black text-white px-2 py-0.5 rounded">{jobId}</span>}
+              </div>
+              <button 
+                onClick={() => setShowLog(false)} 
+                className="hover:bg-black/10 p-1 rounded transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-[#1a1a1a] p-4 font-mono text-xs leading-relaxed text-green-400">
+              <pre className="whitespace-pre-wrap break-all">{buildLog || 'No output available.'}</pre>
+            </div>
+            <div className="p-4 border-t-2 border-black flex justify-end gap-2 bg-white">
+              <Button onClick={() => setShowLog(false)} variant="outline" className="border-2 border-black rounded-none hover:bg-gray-100">
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -26,7 +26,7 @@ const dataUrlToUint8 = async (dataUrl: string) => {
   return new Uint8Array(buf)
 }
 
-export async function exportPebbleProject(nodes: SceneNode[], projectName: string) {
+export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: string) {
   const store = useSceneStore.getState()
   const targetPlatforms = store.targetPlatforms
   const customFonts = store.customFonts
@@ -108,7 +108,12 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
   zip.file('wscript', templateWscript)
 
   const blob = await zip.generateAsync({ type: 'blob' })
-  saveAs(blob, `${projectName}.zip`)
+  return { blob, fileName: `${projectName}.zip` }
+}
+
+export async function exportPebbleProject(nodes: SceneNode[], projectName: string) {
+  const { blob, fileName } = await generatePebbleProjectZip(nodes, projectName)
+  saveAs(blob, fileName)
 }
 
 export function saveProjectFile() {
