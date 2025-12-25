@@ -5,5 +5,14 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
-  }
+  },
+  "vars": {
+    "RUNNER_ORIGIN": "https://build.pebbleface.com"
+  },
+  "routes": [
+    {
+      "pattern": "studio.pebbleface.com/*",
+      "zone_name": "pebbleface.com"
+    }
+  ]
 }
