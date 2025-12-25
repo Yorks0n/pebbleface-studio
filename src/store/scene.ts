@@ -144,14 +144,14 @@ export type PebbleFont = {
 
 export const SYSTEM_FONTS: PebbleFont[] = [
   // Raster Gothic
-  { label: 'Gothic 14', family: 'Raster Gothic', size: 14, key: 'FONT_KEY_GOTHIC_14' },
-  { label: 'Gothic 14 Bold', family: 'Raster Gothic', size: 14, key: 'FONT_KEY_GOTHIC_14_BOLD' },
-  { label: 'Gothic 18', family: 'Raster Gothic', size: 18, key: 'FONT_KEY_GOTHIC_18' },
-  { label: 'Gothic 18 Bold', family: 'Raster Gothic', size: 18, key: 'FONT_KEY_GOTHIC_18_BOLD' },
-  { label: 'Gothic 24', family: 'Raster Gothic', size: 24, key: 'FONT_KEY_GOTHIC_24' },
-  { label: 'Gothic 24 Bold', family: 'Raster Gothic', size: 24, key: 'FONT_KEY_GOTHIC_24_BOLD' },
-  { label: 'Gothic 28', family: 'Raster Gothic', size: 28, key: 'FONT_KEY_GOTHIC_28' },
-  { label: 'Gothic 28 Bold', family: 'Raster Gothic', size: 28, key: 'FONT_KEY_GOTHIC_28_BOLD' },
+  { label: 'Gothic 14', family: 'MedodicaRegular', size: 14, key: 'FONT_KEY_GOTHIC_14' },
+  { label: 'Gothic 14 Bold', family: 'BoldPixels', size: 14, key: 'FONT_KEY_GOTHIC_14_BOLD' },
+  { label: 'Gothic 18', family: 'MedodicaRegular', size: 18, key: 'FONT_KEY_GOTHIC_18' },
+  { label: 'Gothic 18 Bold', family: 'BoldPixels', size: 18, key: 'FONT_KEY_GOTHIC_18_BOLD' },
+  { label: 'Gothic 24', family: 'MedodicaRegular', size: 24, key: 'FONT_KEY_GOTHIC_24' },
+  { label: 'Gothic 24 Bold', family: 'BoldPixels', size: 24, key: 'FONT_KEY_GOTHIC_24_BOLD' },
+  { label: 'Gothic 28', family: 'MedodicaRegular', size: 28, key: 'FONT_KEY_GOTHIC_28' },
+  { label: 'Gothic 28 Bold', family: 'BoldPixels', size: 28, key: 'FONT_KEY_GOTHIC_28_BOLD' },
   
   // Bitham
   { label: 'Bitham 30 Black', family: 'Gotham Black', size: 30, key: 'FONT_KEY_BITHAM_30_BLACK' },

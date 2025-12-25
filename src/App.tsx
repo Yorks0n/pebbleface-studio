@@ -8,8 +8,9 @@ import { Switch } from './components/ui/switch'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 import { useSceneStore } from './store/scene'
-import { exportPebbleProject, saveProjectFile } from './utils/exporter'
+import { saveProjectFile, exportPebbleProject } from './utils/exporter'
 import { NewProjectWizard } from './components/NewProjectWizard'
+import { FontPreloader } from './components/FontPreloader'
 import './index.css'
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
 
   return (
     <div className="min-h-screen p-6 md:p-10 flex flex-col gap-6">
+      <FontPreloader />
       <NewProjectWizard />
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>

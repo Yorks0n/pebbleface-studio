@@ -1,7 +1,20 @@
 @font-face {
+  font-family: 'MedodicaRegular';
+  src: url('/fonts/MedodicaRegular.otf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'BoldPixels';
+  src: url('/fonts/BoldPixels.ttf') format('truetype');
+  font-weight: 400; /* Treated as a separate family, regular weight of that family */
+  font-style: normal;
+}
+
+@font-face {
   font-family: 'Departure Mono';
-  src: url('/fonts/DepartureMono-Regular.woff2') format('woff2'),
-    url('/fonts/DepartureMono-Regular.woff') format('woff'),
+  src: url('/fonts/DepartureMono-Regular.woff') format('woff'),
     url('/fonts/DepartureMono-Regular.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
@@ -10,28 +23,28 @@
 
 @font-face {
   font-family: 'Gotham Black';
-  src: url('/fonts/Gotham Black.otf') format('opentype');
+  src: url('/fonts/RobotoCondensed-Black.ttf') format('opentype');
   font-weight: 900;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Gotham Bold';
-  src: url('/fonts/Gotham Bold.otf') format('opentype');
+  src: url('/fonts/RobotoCondensed-Bold.ttf') format('opentype');
   font-weight: 700;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Gotham Medium';
-  src: url('/fonts/Gotham Medium.otf') format('opentype');
+  src: url('/fonts/RobotoCondensed-Medium.ttf') format('opentype');
   font-weight: 500;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Gotham Light';
-  src: url('/fonts/Gotham Light.otf') format('opentype');
+  src: url('/fonts/RobotoCondensed-Light.ttf') format('opentype');
   font-weight: 300;
   font-style: normal;
 }

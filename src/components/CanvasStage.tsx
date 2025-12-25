@@ -214,6 +214,18 @@ export const CanvasStage = () => {
     selectedIds.forEach((id) => syncTextBounds(id))
   }, [selectedIds, nodes])
 
+  useEffect(() => {
+    const handleFontLoad = () => {
+      stageRef.current?.getLayers().forEach((l) => l.batchDraw())
+    }
+    // @ts-ignore - document.fonts is widely supported but might be missing in older TS lib
+    document.fonts?.addEventListener('loadingdone', handleFontLoad)
+    return () => {
+      // @ts-ignore
+      document.fonts?.removeEventListener('loadingdone', handleFontLoad)
+    }
+  }, [])
+
   const onStageMouseDown = (evt: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     const stageEl = stageRef.current
     const pointer = stageEl?.getPointerPosition()
