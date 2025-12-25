@@ -50,7 +50,7 @@ function App() {
       await compileAndDownload({
         zip: blob,
         zipName: fileName,
-        target: 'basalt', // Default target
+        // target removed as it causes backend errors (pebble tool doesn't support --target flag)
         onStatus: setBuildStatus,
         onJob: setJobId,
         onLog: (log) => {
