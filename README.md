@@ -1,6 +1,6 @@
 # Pebble Face Studio
 
-A visual, modern watchface editor for the Pebble smartwatch ecosystem. Design your watchfaces in the browser and export ready-to-compile C projects for the Pebble SDK.
+A visual, modern watchface editor for the Pebble smartwatch ecosystem. Design your watchfaces in the browser and get the PBW file ready to install on your watch with just one click. Try the web version [here](https://studio.pebbleface.com/).
 
 ![Version](https://img.shields.io/badge/version-MVP-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -12,16 +12,13 @@ A visual, modern watchface editor for the Pebble smartwatch ecosystem. Design yo
   - **Rectangles**: Backgrounds, accents, and shapes.
   - **Text**: Static text with custom or system fonts.
   - **Time/Date**: Dynamic time elements with multiple formatting options.
-  - **Bitmaps**: Upload and position PNG images.
-  - **GPaths**: Create custom vector paths and outlines.
+  - **Bitmaps**: Use your favorite PNG images as background.
+  - **GPaths**: Draw custom vector paths.
 - **Pebble System Fonts**: Full support for standard Pebble fonts including Raster Gothic, Bitham, Roboto, and LECO 1976.
 - **Custom Font Support**: Upload your own `.ttf` or `.otf` files to use in your design.
-- **Monochrome Preview**: Toggle Aplite-style black & white preview to see how your design looks on original Pebble hardware.
-- **Project Management**:
-  - Save and load work-in-progress using the `.pfs` (Pebble Face Studio) file format.
-  - Rename projects on the fly.
-  - Customize the global watchface background color.
-- **Export to SDK**: Download a `.zip` bundle containing a complete Pebble project (`main.c`, `package.json`, `wscript`, and resources) ready for the Pebble SDK.
+- **Monochrome Preview**: Toggle black & white preview to see how your design looks on monochrome Pebble watches.
+- **Project Management**: Save and continue your work with the `.pfs` (Pebble Face Studio) file.
+- **Build & Export**: Obtain the installable `.pbw` or download a `.zip` bundle ready for the Pebble SDK.
 
 
 ## Getting Started
@@ -60,10 +57,25 @@ pnpm build
 
 ## How to Use
 
-1. **New Project**: Select your target platform (Basalt, Chalk, or Emery) and give your project a name.
-2. **Design**: Use the toolbar on the left to add elements. Use the properties panel on the right to tweak coordinates, colors, and font settings.
-3. **Save Progress**: Click **"Save (.pfs)"** to download a local backup of your project. You can resume later by using the "Import" button in the New Project window.
-4. **Export**: Once satisfied, click **"Export (zip)"** to get your Pebble SDK source code.
+**New Project**: Enter the project name and select the appropriate resolution. Standard Rect (144 × 168) is suitable for all the old pebbles except Pebble Time Round. For Time Round please select Round (180 × 180). If you want to design a watchface for the upcoming Pebble Time 2 at its native resolution, choose Large Rect. 
+
+If you have a previously generated `.pfs`, you can click on the button at the top right to import it.
+
+> Note: The compatibility here currently only affects whether installation is possible on the corresponding models and does not involve auto-scaling. 
+
+![image-20251226161952282](images//image-20251226161952282.png)
+
+**Design**: Use the toolbar at the bottom to quickly add elements. Use the left-hand layers panel to adjust the layer order and change the overlapping relationships. Select the element and use the properties panel on the right to tweak coordinates, colors, and font settings. You can now customize the format for time and date by selecting **Format** - **Custom** and adjusting the **Pattern** string.
+
+> Note 1: The built-in font preview currently uses free/open-source fonts that look similar to Pebble system fonts, so the preview may differ from the real watchface. Please refer to actual Pebble system font styles at [system-fonts](https://developer.repebble.com/guides/app-resources/system-fonts/).
+>
+> Note 2: Using Rotate on low-resolution screens may result in poor performance or not work at all. I plan to remove this in the future.
+
+![image-20251226163211071](images//image-20251226163211071.png)
+
+**Save Progress**: Click **"Save (.pfs)"** to download a local backup of your project. You can resume later by using the "Import" button in the New Project window.
+
+**Export**: Once satisfied, click **"Compile"** and wait a few seconds to get the PBW files available for installation. Or your can click **"Source"** to get the Pebble SDK source code for further edit. Please refer to [Use the Pebble SDK in the Cloud](https://developer.repebble.com/sdk/cloud) for using the cloud development environment.
 
 ## License
 
