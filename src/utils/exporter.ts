@@ -226,6 +226,17 @@ const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
   const gpaths = nodes.filter((n) => n.type === 'gpath') as GPathNode[]
 
+  // Determine if we need time updates and at what frequency
+  let tickUnit = ''
+  if (times.length > 0) {
+    const hasSeconds = times.some((t) => {
+      const fmtStr =
+        t.format === 'custom' ? convertCustomFormatToStrftime(t.customFormat || '') : strftimeForFormat(t.format, t.text)
+      return fmtStr.includes('%S')
+    })
+    tickUnit = hasSeconds ? 'SECOND_UNIT' : 'MINUTE_UNIT'
+  }
+
   const bitmapResIds = bitmaps.map((b) => `RESOURCE_ID_${sanitizeResourceName(b.name)}`)
 
   const timeFormats = times
@@ -434,6 +445,11 @@ static int32_t deg_to_trig(int32_t degrees) {
   return (TRIG_MAX_ANGLE * d) / 360;
 }
 
+${tickUnit ? `
+static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+  layer_mark_dirty(s_root_layer);
+}` : ''}
+
 ${timeFormats || ''}
 
 static void layer_update_proc(Layer *layer, GContext *ctx) {
@@ -451,9 +467,11 @@ ${createGPaths}
   s_root_layer = layer_create(bounds);
   layer_set_update_proc(s_root_layer, layer_update_proc);
   layer_add_child(window_layer, s_root_layer);
+${tickUnit ? `  tick_timer_service_subscribe(${tickUnit}, tick_handler);` : ''}
 }
 
-static void main_window_unload(Window *window) {${unloadBitmaps}
+static void main_window_unload(Window *window) {
+${tickUnit ? `  tick_timer_service_unsubscribe();` : ''}${unloadBitmaps}
   layer_destroy(s_root_layer);
 ${customFontUnloads.join('\n')}
 ${destroyGPaths}

@@ -1,23 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
-import { Pencil, Save, Hammer, Terminal, X } from 'lucide-react'
+import { Download, Pencil, Save, Hammer, Terminal, X } from 'lucide-react'
 import { Toolbar } from './components/Toolbar'
 import { CanvasStage } from './components/CanvasStage'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { LayerPanel } from './components/LayerPanel'
-import { Switch } from './components/ui/switch'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 import { useSceneStore } from './store/scene'
-import { generatePebbleProjectZip, saveProjectFile } from './utils/exporter'
+import { generatePebbleProjectZip, saveProjectFile, exportPebbleProject } from './utils/exporter'
 import { compileAndDownload } from './lib/buildClient'
 import { NewProjectWizard } from './components/NewProjectWizard'
 import { FontPreloader } from './components/FontPreloader'
 import './index.css'
 
 function App() {
-  const { aplitePreview, toggleAplite, nodes, projectName, setProjectName } = useSceneStore()
+  const { nodes, projectName, setProjectName } = useSceneStore()
   const [isEditingName, setIsEditingName] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Export State
+  const [exporting, setExporting] = useState(false)
 
   // Build State
   const [isCompiling, setIsCompiling] = useState(false)
@@ -35,6 +37,15 @@ function App() {
   const handleNameBlur = () => {
     setIsEditingName(false)
     if (!projectName.trim()) setProjectName('Untitled Project')
+  }
+
+  const handleSourceDownload = async () => {
+    try {
+      setExporting(true)
+      await exportPebbleProject(nodes, projectName || 'pebble-watchface')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const handleCompile = async () => {
@@ -108,11 +119,7 @@ function App() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 border border-black bg-white px-3 py-2">
-            <span className="text-sm text-black/80 whitespace-nowrap">Monochrome preview</span>
-            <Switch checked={aplitePreview} onClick={toggleAplite} />
-          </div>
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={saveProjectFile}
@@ -122,32 +129,36 @@ function App() {
             <span className="text-sm text-black/80 whitespace-nowrap font-semibold">Save (.pfs)</span>
           </Button>
           
-          <div className="flex items-center gap-1">
-            <Button 
-              onClick={handleCompile} 
-              disabled={isCompiling} 
-              className="flex items-center gap-2 border border-black bg-[#ff4700] text-white hover:bg-[#cc3900] rounded-none h-auto py-2 px-4 font-bold active:translate-y-[1px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Hammer size={16} />
-              {isCompiling ? buildStatus : 'Compile & Download'}
-            </Button>
-            {buildLog && (
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={() => setShowLog(true)} 
-                title="View Build Log"
-                className="rounded-none border border-black h-auto py-2 w-10 hover:bg-gray-100"
-              >
-                <Terminal size={16} />
-              </Button>
-            )}
-          </div>
-
-          {/* <Button onClick={handleExport} disabled={exporting} size="lg" className="min-w-[140px]">
+          <Button
+            onClick={handleSourceDownload}
+            disabled={exporting}
+            className="flex items-center gap-2 border border-black bg-white text-black hover:bg-[#f0f0f0] rounded-none h-auto py-2 px-3 font-semibold transition-all disabled:opacity-50"
+            title="Download Source Code (ZIP)"
+          >
             <Download size={16} />
-            {exporting ? 'Exporting...' : 'Export (zip)'}
-          </Button> */}
+            Source
+          </Button>
+
+          <Button 
+            onClick={handleCompile} 
+            disabled={isCompiling} 
+            className="flex items-center gap-2 border border-black bg-[#ff4700] text-white hover:bg-[#cc3900] rounded-none h-auto py-2 px-4 font-bold active:translate-y-[1px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Hammer size={16} />
+            {isCompiling ? buildStatus : 'Compile'}
+          </Button>
+
+          {buildLog && (
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setShowLog(true)} 
+              title="View Build Log"
+              className="rounded-none border border-black h-auto py-2 w-10 hover:bg-gray-100"
+            >
+              <Terminal size={16} />
+            </Button>
+          )}
         </div>
       </header>
 

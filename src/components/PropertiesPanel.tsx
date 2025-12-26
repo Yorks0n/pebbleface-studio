@@ -15,6 +15,7 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { Switch } from './ui/switch'
 import { ColorSelect } from './ColorSelect'
 
 type SceneNodeKey = keyof (RectNode & TextNode & BitmapNode & TimeNode & GPathNode)
@@ -41,6 +42,8 @@ export const PropertiesPanel = () => {
     targetPlatforms,
     setTargetPlatforms,
     stage,
+    aplitePreview,
+    toggleAplite,
   } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -194,10 +197,23 @@ export const PropertiesPanel = () => {
           <div className="flex items-center justify-between mb-2">
             <div>
               <div className="text-sm font-semibold text-black">Background Color</div>
-              <div className="text-xs uppercase text-black/50">BACKGROUND</div>
             </div>
           </div>
           <ColorSelect label="Background" value={backgroundColor} onChange={setBackgroundColor} />
+        </div>
+
+        <div className="pt-4 border-t border-black/10 space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-semibold text-black">Monochrome Preview</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-[90px_1fr] items-center gap-3">
+            <div className="text-[11px] text-[#666] uppercase">Preview</div>
+            <div className="flex items-center justify-center h-9">
+              <Switch checked={aplitePreview} onClick={toggleAplite} className="scale-110" />
+            </div>
+          </div>
         </div>
 
         <div className="pt-4 border-t border-black/10 space-y-3">
@@ -389,7 +405,13 @@ export const PropertiesPanel = () => {
             <select
               className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
               value={target.text}
-              onChange={(e) => updateTime('text', e.target.value as TimeNode['text'])}
+              onChange={(e) => {
+                const newType = e.target.value as TimeNode['text']
+                updateNode(target.id, {
+                  text: newType,
+                  format: timeFormatOptions[newType][0].id,
+                } as any)
+              }}
             >
               <option value="time">Time</option>
               <option value="date">Date</option>
