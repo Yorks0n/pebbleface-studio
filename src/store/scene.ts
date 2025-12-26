@@ -497,6 +497,7 @@ export const timeFormatOptions: Record<
       label: '12h hh:mm:ss AM/PM',
       formatter: (d) => fmt(d, { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     },
+    { id: 'custom', label: 'Custom...', formatter: () => '' },
   ],
   date: [
     { id: 'YYYY-MM-DD', label: 'YYYY-MM-DD', formatter: (d) => dateParts(d, 'yyyy-MM-dd') },
@@ -510,6 +511,20 @@ export const timeFormatOptions: Record<
 
 // Export dateParts so it can be used in components
 export { dateParts }
+
+export function timeParts(date: Date, pattern: string) {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const hours24 = date.getHours()
+  const hours12 = hours24 % 12 || 12
+  const map: Record<string, string> = {
+    HH: pad(hours24),
+    hh: pad(hours12),
+    MM: pad(date.getMinutes()),
+    SS: pad(date.getSeconds()),
+    APM: hours24 >= 12 ? 'PM' : 'AM',
+  }
+  return pattern.replace(/HH|hh|MM|SS|APM/g, (match) => map[match] || match)
+}
 
 function fmt(date: Date, opts: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat('en-US', opts).format(date)

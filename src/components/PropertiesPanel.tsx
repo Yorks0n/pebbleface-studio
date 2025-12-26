@@ -1,4 +1,4 @@
-import { Trash, AlertCircle } from 'lucide-react'
+import { Trash, AlertCircle, Info } from 'lucide-react'
 import { useMemo, useRef } from 'react'
 import {
   useSceneStore,
@@ -11,6 +11,7 @@ import {
   timeFormatOptions,
   SYSTEM_FONTS,
   dateParts,
+  timeParts,
 } from '../store/scene'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -27,6 +28,26 @@ const FONT_FILTERS: { id: FontFilter; label: string }[] = [
   { id: 'standard', label: 'Digits & Case (Standard)' },
   { id: 'extended', label: 'Extended (with punctuation)' },
   { id: 'none', label: 'None (All characters)' },
+]
+
+const TIME_FORMAT_HELP = [
+  { token: 'HH', desc: '00-23' },
+  { token: 'hh', desc: '01-12' },
+  { token: 'MM', desc: '00-59' },
+  { token: 'SS', desc: '00-59' },
+  { token: 'APM', desc: 'AM/PM' },
+]
+
+const DATE_FORMAT_HELP = [
+  { token: 'yyyy', desc: '2024' },
+  { token: 'yy', desc: '24' },
+  { token: 'MMM', desc: 'JAN' },
+  { token: 'mmm', desc: 'Jan' },
+  { token: 'MM', desc: '01' },
+  { token: 'M', desc: '1' },
+  { token: 'dd', desc: '01' },
+  { token: 'd', desc: '1' },
+  { token: 'EEE', desc: 'Mon' },
 ]
 
 export const PropertiesPanel = () => {
@@ -177,7 +198,11 @@ export const PropertiesPanel = () => {
     } else {
       const tNode = target as TimeNode
       if (tNode.format === 'custom') {
-        text = dateParts(new Date(), tNode.customFormat || '')
+        if (tNode.text === 'time') {
+          text = timeParts(new Date(), tNode.customFormat || '')
+        } else {
+          text = dateParts(new Date(), tNode.customFormat || '')
+        }
       } else {
         const opt = timeFormatOptions[tNode.text].find((o) => o.id === tNode.format)
         text = opt ? opt.formatter(new Date()) : ''
@@ -431,10 +456,25 @@ export const PropertiesPanel = () => {
             </select>
           </GridPair>
           {target.format === 'custom' && (
-            <GridPair label="Pattern">
+            <GridPair
+              label="Pattern"
+              helpContent={
+                <div className="text-[10px] leading-relaxed font-mono">
+                  <div className="font-bold border-b border-black/10 mb-1.5 pb-1 font-sans text-black">
+                    Supported Tokens
+                  </div>
+                  {(target.text === 'time' ? TIME_FORMAT_HELP : DATE_FORMAT_HELP).map((h) => (
+                    <div key={h.token} className="grid grid-cols-[36px_1fr] gap-1">
+                      <span className="font-bold text-black">{h.token}</span>
+                      <span className="text-black/60">{h.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              }
+            >
               <Input
                 value={target.customFormat || ''}
-                placeholder="e.g. yyyy-MM-dd"
+                placeholder={target.text === 'time' ? 'HH:MM' : 'yyyy-MM-dd'}
                 onChange={(e) => updateTime('customFormat', e.target.value)}
               />
             </GridPair>
@@ -514,9 +554,27 @@ export const PropertiesPanel = () => {
 }
 
 
-const GridPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
+const GridPair = ({
+  label,
+  helpContent,
+  children,
+}: {
+  label: string
+  helpContent?: React.ReactNode
+  children: React.ReactNode
+}) => (
   <div className="grid grid-cols-[90px_1fr] items-center gap-3">
-    <Label className="text-[11px] text-[#666]">{label}</Label>
+    <div className="flex items-center gap-1.5">
+      <Label className="text-[11px] text-[#666]">{label}</Label>
+      {helpContent && (
+        <div className="group relative flex items-center">
+          <Info size={10} className="text-black/40 cursor-help hover:text-black/70" />
+          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 bg-white border border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-50 pointer-events-none">
+            {helpContent}
+          </div>
+        </div>
+      )}
+    </div>
     {children}
   </div>
 )

@@ -231,7 +231,7 @@ const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   if (times.length > 0) {
     const hasSeconds = times.some((t) => {
       const fmtStr =
-        t.format === 'custom' ? convertCustomFormatToStrftime(t.customFormat || '') : strftimeForFormat(t.format, t.text)
+        t.format === 'custom' ? convertCustomFormatToStrftime(t.customFormat || '', t.text) : strftimeForFormat(t.format, t.text)
       return fmtStr.includes('%S')
     })
     tickUnit = hasSeconds ? 'SECOND_UNIT' : 'MINUTE_UNIT'
@@ -242,7 +242,7 @@ const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   const timeFormats = times
     .map((t, idx) => {
       const fmtStr =
-        t.format === 'custom' ? convertCustomFormatToStrftime(t.customFormat || '') : strftimeForFormat(t.format, t.text)
+        t.format === 'custom' ? convertCustomFormatToStrftime(t.customFormat || '', t.text) : strftimeForFormat(t.format, t.text)
       return `static const char *s_time_fmt_${idx} = "${fmtStr}";`
     })
     .join('\n')
@@ -556,7 +556,7 @@ const getRegexForFilter = (filter?: FontFilter) => {
   }
 }
 
-const convertCustomFormatToStrftime = (custom: string) => {
+const convertCustomFormatToStrftime = (custom: string, type: string = 'date') => {
   let s = custom
   s = s.replace(/%/g, '%%')
   const map: Record<string, string> = {
@@ -564,12 +564,16 @@ const convertCustomFormatToStrftime = (custom: string) => {
     yy: '%y',
     MMM: '%b',
     mmm: '%b',
-    MM: '%m',
+    MM: type === 'time' ? '%M' : '%m',
     M: '%m',
     dd: '%d',
     d: '%e',
+    HH: '%H',
+    hh: '%I',
+    SS: '%S',
+    APM: '%p',
   }
-  s = s.replace(/yyyy|yy|MMM|mmm|MM|M|dd|d/g, (match) => {
+  s = s.replace(/yyyy|yy|MMM|mmm|MM|M|dd|d|HH|hh|SS|APM/g, (match) => {
     return map[match] || match
   })
   return s
