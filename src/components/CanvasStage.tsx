@@ -278,7 +278,7 @@ export const CanvasStage = () => {
 
   return (
     <div className="relative flex flex-col items-center gap-3">
-      <div className="text-xs uppercase tracking-[0.2em] text-black/70">Canvas 200×228</div>
+      <div className="text-xs uppercase tracking-[0.2em] text-black/70">Canvas {stage.width}×{stage.height}</div>
       <div
         className="retro-panel p-3"
         style={{
