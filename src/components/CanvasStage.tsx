@@ -16,7 +16,6 @@ import {
   pebbleBwHexFromHex,
   pebbleGrayHexFromTone,
   pebbleGrayToneFromHexUnquantized,
-  pebbleGrayToneFromRgb,
 } from '../lib/utils'
 import { useState } from 'react'
 
@@ -64,16 +63,8 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
         const r = data[i]
         const g = data[i + 1]
         const b = data[i + 2]
-        const tone = pebbleGrayToneFromRgb(r, g, b)
-        const pixelIndex = i / 4
-        const x = pixelIndex % w
-        const y = Math.floor(pixelIndex / w)
-        let value = 255
-        if (tone === 'black') {
-          value = 0
-        } else if (tone === 'darkGray' || tone === 'lightGray') {
-          value = (x + y) % 2 === 0 ? 0 : 255
-        }
+        const brightness = (r + g + b) / 3
+        const value = brightness < 127 ? 0 : 255
         data[i] = value
         data[i + 1] = value
         data[i + 2] = value
