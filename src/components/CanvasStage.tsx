@@ -13,6 +13,7 @@ import {
   dateParts,
   timeParts,
 } from '../store/scene'
+import { triToneValueFromRgb } from '../lib/utils'
 import { useState } from 'react'
 
 type BitmapProps = {
@@ -56,11 +57,10 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
         const r = data[i]
         const g = data[i + 1]
         const b = data[i + 2]
-        const brightness = 0.299 * r + 0.587 * g + 0.114 * b
-        const bw = brightness > 128 ? 255 : 0
-        data[i] = bw
-        data[i + 1] = bw
-        data[i + 2] = bw
+        const tone = triToneValueFromRgb(r, g, b)
+        data[i] = tone
+        data[i + 1] = tone
+        data[i + 2] = tone
       }
       ctx.putImageData(img, 0, 0)
       setProcessedDataUrl(canvas.toDataURL('image/png'))
