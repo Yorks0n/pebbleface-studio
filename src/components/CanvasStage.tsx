@@ -17,6 +17,7 @@ import { useState } from 'react'
 
 type BitmapProps = {
   node: SceneNode & { type: 'bitmap' }
+  aplitePreview: boolean
   onSelect: (id: string, evt: Konva.KonvaEventObject<unknown>) => void
   onDragEnd: (id: string, evt: Konva.KonvaEventObject<DragEvent>) => void
   onDragMove: (id: string, evt: Konva.KonvaEventObject<DragEvent>) => void
@@ -25,8 +26,56 @@ type BitmapProps = {
   draggable: boolean
 }
 
-const BitmapShape = ({ node, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
-  const [img] = useImage(node.dataUrl)
+const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
+  const [processedDataUrl, setProcessedDataUrl] = useState(node.dataUrl)
+
+  useEffect(() => {
+    if (!aplitePreview) {
+      setProcessedDataUrl(node.dataUrl)
+      return
+    }
+
+    let cancelled = false
+    const sourceImage = new window.Image()
+    sourceImage.onload = () => {
+      if (cancelled) return
+      const w = Math.max(1, sourceImage.width)
+      const h = Math.max(1, sourceImage.height)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        setProcessedDataUrl(node.dataUrl)
+        return
+      }
+      ctx.drawImage(sourceImage, 0, 0, w, h)
+      const img = ctx.getImageData(0, 0, w, h)
+      const data = img.data
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i]
+        const g = data[i + 1]
+        const b = data[i + 2]
+        const brightness = 0.299 * r + 0.587 * g + 0.114 * b
+        const bw = brightness > 128 ? 255 : 0
+        data[i] = bw
+        data[i + 1] = bw
+        data[i + 2] = bw
+      }
+      ctx.putImageData(img, 0, 0)
+      setProcessedDataUrl(canvas.toDataURL('image/png'))
+    }
+    sourceImage.onerror = () => {
+      if (cancelled) return
+      setProcessedDataUrl(node.dataUrl)
+    }
+    sourceImage.src = node.dataUrl
+    return () => {
+      cancelled = true
+    }
+  }, [node.dataUrl, aplitePreview])
+
+  const [img] = useImage(processedDataUrl)
   return (
     <KonvaImage
       ref={(el) => registerRef(node.id, el)}
@@ -281,9 +330,6 @@ export const CanvasStage = () => {
       <div className="text-xs uppercase tracking-[0.2em] text-black/70">Canvas {stage.width}×{stage.height}</div>
       <div
         className="retro-panel p-3"
-        style={{
-          filter: aplitePreview ? 'grayscale(1) contrast(2)' : 'none',
-        }}
       >
         <Stage
           width={stage.width * scale}
@@ -440,6 +486,7 @@ export const CanvasStage = () => {
                 <BitmapShape
                   key={node.id}
                   node={node}
+                  aplitePreview={aplitePreview}
                   onSelect={handleSelect}
                   onDragEnd={handleDrag}
                   onDragMove={handleDrag}
