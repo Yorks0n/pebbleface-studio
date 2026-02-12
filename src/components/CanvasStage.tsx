@@ -58,9 +58,19 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
         const g = data[i + 1]
         const b = data[i + 2]
         const tone = triToneValueFromRgb(r, g, b)
-        data[i] = tone
-        data[i + 1] = tone
-        data[i + 2] = tone
+        if (tone === 170) {
+          const pixelIndex = i / 4
+          const x = pixelIndex % w
+          const y = Math.floor(pixelIndex / w)
+          const dithered = (x + y) % 2 === 0 ? 0 : 255
+          data[i] = dithered
+          data[i + 1] = dithered
+          data[i + 2] = dithered
+        } else {
+          data[i] = tone
+          data[i + 1] = tone
+          data[i + 2] = tone
+        }
       }
       ctx.putImageData(img, 0, 0)
       setProcessedDataUrl(canvas.toDataURL('image/png'))
