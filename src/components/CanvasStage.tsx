@@ -5,7 +5,6 @@ import Konva from 'konva'
 import {
   useSceneStore,
   type SceneNode,
-  getDisplayColor,
   timeFormatOptions,
   type TimeNode,
   normalizeGPathPoints,
@@ -13,7 +12,12 @@ import {
   dateParts,
   timeParts,
 } from '../store/scene'
-import { triToneValueFromRgb } from '../lib/utils'
+import {
+  pebbleBwHexFromHex,
+  pebbleGrayHexFromTone,
+  pebbleGrayToneFromHexUnquantized,
+  pebbleGrayToneFromRgb,
+} from '../lib/utils'
 import { useState } from 'react'
 
 type BitmapProps = {
@@ -29,6 +33,7 @@ type BitmapProps = {
 
 const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
   const [processedDataUrl, setProcessedDataUrl] = useState(node.dataUrl)
+  const displayStroke = aplitePreview ? pebbleBwHexFromHex(node.stroke) : node.stroke
 
   useEffect(() => {
     if (!aplitePreview) {
@@ -54,23 +59,24 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
       const img = ctx.getImageData(0, 0, w, h)
       const data = img.data
       for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3]
+        if (a === 0) continue
         const r = data[i]
         const g = data[i + 1]
         const b = data[i + 2]
-        const tone = triToneValueFromRgb(r, g, b)
-        if (tone === 170) {
-          const pixelIndex = i / 4
-          const x = pixelIndex % w
-          const y = Math.floor(pixelIndex / w)
-          const dithered = (x + y) % 2 === 0 ? 0 : 255
-          data[i] = dithered
-          data[i + 1] = dithered
-          data[i + 2] = dithered
-        } else {
-          data[i] = tone
-          data[i + 1] = tone
-          data[i + 2] = tone
+        const tone = pebbleGrayToneFromRgb(r, g, b)
+        const pixelIndex = i / 4
+        const x = pixelIndex % w
+        const y = Math.floor(pixelIndex / w)
+        let value = 255
+        if (tone === 'black') {
+          value = 0
+        } else if (tone === 'darkGray' || tone === 'lightGray') {
+          value = (x + y) % 2 === 0 ? 0 : 255
         }
+        data[i] = value
+        data[i + 1] = value
+        data[i + 2] = value
       }
       ctx.putImageData(img, 0, 0)
       setProcessedDataUrl(canvas.toDataURL('image/png'))
@@ -97,7 +103,7 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
       rotation={node.rotation}
       draggable={draggable}
       strokeWidth={node.strokeWidth}
-      stroke={node.stroke}
+      stroke={displayStroke}
       onClick={(e) => onSelect(node.id, e)}
       onTap={(e) => onSelect(node.id, e)}
       onDragMove={(e) => onDragMove(node.id, e)}
@@ -134,6 +140,17 @@ export const CanvasStage = () => {
   const closeThreshold = 8
 
   const scale = 1.8
+
+  const getFillProps = (color: string) => {
+    if (!aplitePreview) return { fill: color }
+    const tone = pebbleGrayToneFromHexUnquantized(color)
+    return { fill: pebbleGrayHexFromTone(tone) }
+  }
+
+  const getBwColor = (color: string) => {
+    if (!aplitePreview) return color
+    return pebbleBwHexFromHex(color)
+  }
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 1000)
@@ -357,7 +374,7 @@ export const CanvasStage = () => {
               y={0}
               width={stage.width}
               height={stage.height}
-              fill={getDisplayColor(backgroundColor, aplitePreview)}
+              {...getFillProps(backgroundColor)}
               cornerRadius={12}
               onClick={() => setSelection([])}
               onTap={() => setSelection([])}
@@ -376,8 +393,8 @@ export const CanvasStage = () => {
                     width={node.width}
                     height={node.height}
                     rotation={node.rotation}
-                    fill={getDisplayColor(node.fill, aplitePreview)}
-                    stroke={getDisplayColor(node.stroke, aplitePreview)}
+                    {...getFillProps(node.fill)}
+                    stroke={getBwColor(node.stroke)}
                     strokeWidth={node.strokeWidth}
                     draggable
                     onClick={handleSelectClick(node.id)}
@@ -400,7 +417,7 @@ export const CanvasStage = () => {
                       x={node.x}
                       y={node.y}
                       points={points}
-                      stroke={getDisplayColor(node.stroke, aplitePreview)}
+                      stroke={getBwColor(node.stroke)}
                       strokeWidth={baseStroke}
                       lineCap="round"
                       lineJoin="round"
@@ -452,8 +469,8 @@ export const CanvasStage = () => {
                     text={node.text}
                     fontFamily={node.fontFamily}
                     fontSize={node.fontSize}
-                    fill={getDisplayColor(node.fill, aplitePreview)}
-                    stroke={getDisplayColor(node.stroke, aplitePreview)}
+                    fill={getBwColor(node.fill)}
+                    stroke={getBwColor(node.stroke)}
                     strokeWidth={node.strokeWidth}
                     draggable
                     rotation={node.rotation}
@@ -478,8 +495,8 @@ export const CanvasStage = () => {
                     text={formatTimeNode(node)}
                     fontFamily={node.fontFamily}
                     fontSize={node.fontSize}
-                    fill={getDisplayColor(node.fill, aplitePreview)}
-                    stroke={getDisplayColor(node.stroke, aplitePreview)}
+                    fill={getBwColor(node.fill)}
+                    stroke={getBwColor(node.stroke)}
                     strokeWidth={node.strokeWidth}
                     draggable
                     rotation={node.rotation}
