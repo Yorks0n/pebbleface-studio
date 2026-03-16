@@ -609,6 +609,7 @@ function fmt(date: Date, opts: Intl.DateTimeFormatOptions) {
 
 function dateParts(date: Date, pattern: string) {
   const pad = (n: number, l = 2) => n.toString().padStart(l, '0')
+  const weekday = date.getDay()
   const map: Record<string, string> = {
     yyyy: pad(date.getFullYear(), 4),
     yy: pad(date.getFullYear() % 100, 2),
@@ -619,14 +620,16 @@ function dateParts(date: Date, pattern: string) {
     dd: pad(date.getDate()),
     d: date.getDate().toString(),
     EEE: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
+    E: (weekday === 0 ? 7 : weekday).toString(),
   }
   // Order matters: match longer tokens first!
   // MMM before MM before M
   // mmm before mm (if exists)
   // yyyy before yy
   // dd before d
+  // EEE before E
   return pattern
-    .replace(/yyyy|yy|MMM|mmm|EEE|MM|M|dd|d/g, (token) => map[token] || token)
+    .replace(/yyyy|yy|MMM|mmm|EEE|E|MM|M|dd|d/g, (token) => map[token] || token)
 }
 
 async function injectFontFace(name: string, dataUrl: string) {

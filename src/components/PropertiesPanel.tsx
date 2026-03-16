@@ -57,6 +57,7 @@ const DATE_FORMAT_HELP = [
   { token: 'dd', desc: '01' },
   { token: 'd', desc: '1' },
   { token: 'EEE', desc: 'Mon' },
+  { token: 'E', desc: '1-7' },
 ]
 
 export const PropertiesPanel = () => {
@@ -524,6 +525,11 @@ export const PropertiesPanel = () => {
                       <span className="text-black/60">{h.desc}</span>
                     </div>
                   ))}
+                  {target.text === 'date' && (
+                    <div className="mt-2 border-t border-black/10 pt-1.5 font-sans text-black/60">
+                      1-7 represents Mon to Sun
+                    </div>
+                  )}
                 </div>
               }
             >

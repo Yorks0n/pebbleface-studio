@@ -760,6 +760,7 @@ const convertCustomFormatToStrftime = (custom: string, type: string = 'date') =>
     yy: '%y',
     MMM: '%b',
     mmm: '%b',
+    E: '%u',
     MM: type === 'time' ? '%M' : '%m',
     M: '%m',
     dd: '%d',
@@ -769,7 +770,7 @@ const convertCustomFormatToStrftime = (custom: string, type: string = 'date') =>
     SS: '%S',
     APM: '%p',
   }
-  s = s.replace(/yyyy|yy|MMM|mmm|MM|M|dd|d|HH|hh|SS|APM/g, (match) => {
+  s = s.replace(/yyyy|yy|MMM|mmm|E|MM|M|dd|d|HH|hh|SS|APM/g, (match) => {
     return map[match] || match
   })
   return s
