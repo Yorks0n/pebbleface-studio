@@ -2,10 +2,11 @@ import { ArrowDownToLine, ArrowUpToLine, Layers, MoveDown, MoveUp, Trash } from 
 import { Button } from './ui/button'
 import { useSceneStore } from '../store/scene'
 
-const typeLabel: Record<'rect' | 'text' | 'bitmap' | 'time' | 'gpath', string> = {
+const typeLabel: Record<'rect' | 'text' | 'bitmap' | 'time' | 'image-time' | 'gpath', string> = {
   rect: 'Rect',
   text: 'Text',
   time: 'Time/Date',
+  'image-time': 'PNG Time/Date',
   bitmap: 'Bitmap',
   gpath: 'GPath',
 }

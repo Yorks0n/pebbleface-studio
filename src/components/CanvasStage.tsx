@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { Fragment, useEffect, useMemo, useRef } from 'react'
 import { Layer, Rect, Stage, Text as KonvaText, Image as KonvaImage, Transformer, Line, Circle, Group } from 'react-konva'
 import useImage from 'use-image'
 import Konva from 'konva'
@@ -7,6 +7,7 @@ import {
   type SceneNode,
   timeFormatOptions,
   type TimeNode,
+  type ImageTimeNode,
   normalizeGPathPoints,
   type GPathNode,
   dateParts,
@@ -28,6 +29,25 @@ type BitmapProps = {
   onTransformEnd: (id: string) => void
   registerRef: (id: string, el: Konva.Node | null) => void
   draggable: boolean
+}
+
+type ImageTimeProps = {
+  node: ImageTimeNode
+  now: Date
+  aplitePreview: boolean
+  onSelect: (id: string, evt: Konva.KonvaEventObject<unknown>) => void
+  onDragEnd: (id: string, evt: Konva.KonvaEventObject<DragEvent>) => void
+  onDragMove: (id: string, evt: Konva.KonvaEventObject<DragEvent>) => void
+  onTransformEnd: (id: string) => void
+  registerRef: (id: string, el: Konva.Node | null) => void
+}
+
+type ImageTimeDigitSpriteProps = {
+  dataUrl?: string
+  x: number
+  width: number
+  height: number
+  aplitePreview: boolean
 }
 
 const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
@@ -104,6 +124,89 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
   )
 }
 
+const ImageTimeDigitSprite = ({ dataUrl, x, width, height, aplitePreview }: ImageTimeDigitSpriteProps) => {
+  const [image] = useImage(dataUrl || '')
+  if (image) {
+    const fitted = fitBitmapWithinBox(image.width, image.height, width, height)
+    return (
+      <KonvaImage
+        image={image}
+        x={x + fitted.offsetX}
+        y={fitted.offsetY}
+        width={fitted.width}
+        height={fitted.height}
+        listening={false}
+      />
+    )
+  }
+  return (
+    <Rect
+      x={x}
+      y={0}
+      width={width}
+      height={height}
+      stroke={aplitePreview ? '#ffffff' : '#6b7280'}
+      dash={[4, 3]}
+      listening={false}
+    />
+  )
+}
+
+const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef }: ImageTimeProps) => {
+  const rendered = imageTimeRenderedValue(now, node)
+  const positions = rendered.type === 'segmented'
+    ? buildImageTimePositions(node.width, rendered.parts.length, Math.max(0, node.charSpacing), Math.max(0, node.groupSpacing))
+    : null
+
+  return (
+    <Group
+      ref={(el) => registerRef(node.id, el)}
+      x={node.x}
+      y={node.y}
+      rotation={node.rotation}
+      draggable
+      onClick={(e) => onSelect(node.id, e)}
+      onTap={(e) => onSelect(node.id, e)}
+      onDragMove={(e) => onDragMove(node.id, e)}
+      onDragEnd={(e) => onDragEnd(node.id, e)}
+      onTransformEnd={() => onTransformEnd(node.id)}
+    >
+      <Rect
+        x={0}
+        y={0}
+        width={node.width}
+        height={node.height}
+        fill="rgba(0,0,0,0.001)"
+        strokeEnabled={false}
+      />
+      {rendered.type === 'segmented'
+        ? rendered.parts.map((char, index) => {
+            const asset = node.glyphs.find((item) => item.key === char)
+            return (
+              <ImageTimeDigitSprite
+                key={`${node.id}-${char}-${index}`}
+                dataUrl={asset?.dataUrl}
+                x={positions?.xs[index] || 0}
+                width={positions?.charWidth || node.width}
+                height={node.height}
+                aplitePreview={aplitePreview}
+              />
+            )
+          })
+        : (
+          <ImageTimeDigitSprite
+            key={`${node.id}-${rendered.key}`}
+            dataUrl={node.glyphs.find((item) => item.key === rendered.key)?.dataUrl}
+            x={0}
+            width={node.width}
+            height={node.height}
+            aplitePreview={aplitePreview}
+          />
+        )}
+    </Group>
+  )
+}
+
 export const CanvasStage = () => {
   const {
     nodes,
@@ -113,6 +216,7 @@ export const CanvasStage = () => {
     addRect,
     addText,
     addTimeText,
+    addImageTime,
     addGPath,
     appendGPathPoint,
     removeNode,
@@ -251,6 +355,23 @@ export const CanvasStage = () => {
       })
       return
     }
+    if (targetNode && targetNode.type === 'image-time') {
+      const groupNode = node as Konva.Group
+      const nextWidth = Math.max(16, targetNode.width * scaleX)
+      const nextHeight = Math.max(4, targetNode.height * scaleY)
+      node.scaleX(1)
+      node.scaleY(1)
+      updateNode(id, {
+        x: groupNode.x(),
+        y: groupNode.y(),
+        rotation: groupNode.rotation(),
+        width: nextWidth,
+        height: nextHeight,
+        charSpacing: Math.max(0, targetNode.charSpacing * scaleX),
+        groupSpacing: Math.max(0, targetNode.groupSpacing * scaleX),
+      })
+      return
+    }
     const nextWidth = Math.max(4, node.width() * scaleX)
     const nextHeight = Math.max(4, node.height() * scaleY)
     node.scaleX(1)
@@ -327,6 +448,7 @@ export const CanvasStage = () => {
     if (tool === 'rect') addRect(normalized.x - 30, normalized.y - 24)
     else if (tool === 'text') addText(normalized.x - 40, normalized.y - 12)
     else if (tool === 'time') addTimeText(normalized.x - 40, normalized.y - 12)
+    else if (tool === 'image-time') addImageTime(normalized.x - 58, normalized.y - 16)
     else setSelection([])
   }
 
@@ -401,9 +523,8 @@ export const CanvasStage = () => {
                 const points = node.points.flatMap((p) => [p.x, p.y])
                 const baseStroke = Math.max(0.5, node.strokeWidth || 1)
                 return (
-                  <>
+                  <Fragment key={node.id}>
                     <Line
-                      key={node.id}
                       ref={(el) => registerRef(node.id, el)}
                       x={node.x}
                       y={node.y}
@@ -445,7 +566,7 @@ export const CanvasStage = () => {
                         ))}
                       </Group>
                     )}
-                  </>
+                  </Fragment>
                 )
               }
               if (node.type === 'text') {
@@ -500,6 +621,21 @@ export const CanvasStage = () => {
                   />
                 )
               }
+              if (node.type === 'image-time') {
+                return (
+                  <ImageTimeShape
+                    key={node.id}
+                    node={node}
+                    now={now}
+                    aplitePreview={aplitePreview}
+                    onSelect={handleSelect}
+                    onDragEnd={handleDrag}
+                    onDragMove={handleDrag}
+                    onTransformEnd={handleTransform}
+                    registerRef={registerRef}
+                  />
+                )
+              }
               return (
                 <BitmapShape
                   key={node.id}
@@ -528,4 +664,60 @@ export const CanvasStage = () => {
       </div>
     </div>
   )
+}
+
+function imageTimeRenderedValue(now: Date, node: ImageTimeNode): { type: 'segmented'; parts: string[] } | { type: 'whole'; key: string } {
+  if (node.mode === 'date') {
+    if (node.dateFormat === 'MMM') {
+      return { type: 'whole', key: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(now).toUpperCase() }
+    }
+    if (node.dateFormat === 'DD') {
+      return { type: 'segmented', parts: String(now.getDate()).padStart(2, '0').split('') }
+    }
+    return { type: 'segmented', parts: String(now.getMonth() + 1).padStart(2, '0').split('') }
+  }
+  if (node.mode === 'week') {
+    const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(now).toUpperCase()
+    if (node.weekFormat === 'words') {
+      return { type: 'whole', key: weekday }
+    }
+    return { type: 'segmented', parts: weekday.split('') }
+  }
+  if (node.timeFormat === '12h') {
+    const hours = now.getHours() % 12 || 12
+    return { type: 'segmented', parts: `${String(hours).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`.split('') }
+  }
+  return { type: 'segmented', parts: `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`.split('') }
+}
+
+function buildImageTimePositions(totalWidth: number, charCount: number, charSpacing: number, groupSpacing: number) {
+  const xs: number[] = []
+  if (charCount <= 0) return { xs, charWidth: Math.max(4, totalWidth) }
+  const gapCount = Math.max(0, charCount - 1)
+  const totalGap = charCount === 4 ? charSpacing * 2 + groupSpacing : charSpacing * gapCount
+  const charWidth = Math.max(4, (totalWidth - totalGap) / charCount)
+  let x = 0
+  for (let i = 0; i < charCount; i += 1) {
+    xs.push(x)
+    x += charWidth
+    if (i < charCount - 1) {
+      x += charCount === 4 && i === 1 ? groupSpacing : charSpacing
+    }
+  }
+  return { xs, charWidth }
+}
+
+function fitBitmapWithinBox(sourceWidth: number, sourceHeight: number, maxWidth: number, maxHeight: number) {
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    return { width: maxWidth, height: maxHeight, offsetX: 0, offsetY: 0 }
+  }
+  const scale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight)
+  const width = Math.max(1, sourceWidth * scale)
+  const height = Math.max(1, sourceHeight * scale)
+  return {
+    width,
+    height,
+    offsetX: (maxWidth - width) / 2,
+    offsetY: (maxHeight - height) / 2,
+  }
 }

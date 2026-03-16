@@ -2,12 +2,18 @@ import { create } from 'zustand'
 import { apliteColor, uid, randomUuid } from '../lib/utils'
 import { defaultFill, defaultStroke } from '../lib/color-dict'
 
-export type Tool = 'select' | 'rect' | 'text' | 'image' | 'time' | 'gpath'
+export type Tool = 'select' | 'rect' | 'text' | 'image' | 'time' | 'image-time' | 'gpath'
+
+export type TimeDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+export type ImageTimeMode = 'time' | 'date' | 'week'
+export type ImageTimeTimeFormat = '24h' | '12h'
+export type ImageTimeDateFormat = 'MM' | 'DD' | 'MMM'
+export type ImageTimeWeekFormat = 'letters' | 'words'
 
 export type BaseNode = {
   id: string
   name: string
-  type: 'rect' | 'text' | 'bitmap' | 'time' | 'gpath'
+  type: 'rect' | 'text' | 'bitmap' | 'time' | 'image-time' | 'gpath'
   x: number
   y: number
   width: number
@@ -55,12 +61,30 @@ export type BitmapNode = BaseNode & {
   file?: File | null
 }
 
+export type ImageTimeGlyphAsset = {
+  key: string
+  dataUrl: string
+  fileName: string
+  file?: File | null
+}
+
+export type ImageTimeNode = BaseNode & {
+  type: 'image-time'
+  mode: ImageTimeMode
+  timeFormat: ImageTimeTimeFormat
+  dateFormat: ImageTimeDateFormat
+  weekFormat: ImageTimeWeekFormat
+  glyphs: ImageTimeGlyphAsset[]
+  charSpacing: number
+  groupSpacing: number
+}
+
 export type GPathNode = BaseNode & {
   type: 'gpath'
   points: { x: number; y: number }[]
 }
 
-export type SceneNode = RectNode | TextNode | BitmapNode | TimeNode | GPathNode
+export type SceneNode = RectNode | TextNode | BitmapNode | TimeNode | ImageTimeNode | GPathNode
 
 export type TimeFormatId =
   | 'HH:mm'
@@ -124,6 +148,7 @@ export type SceneState = {
   addText: (x: number, y: number) => void
   addTimeText: (x: number, y: number) => void
   addBitmap: (node: Omit<BitmapNode, keyof BaseNode | 'type'> & Partial<BaseNode>) => void
+  addImageTime: (x: number, y: number) => void
   addCustomFont: (file: File) => Promise<string>
   loadProject: (file: ProjectFile) => Promise<void>
   addGPath: (point: { x: number; y: number }) => string
@@ -134,6 +159,11 @@ export type SceneState = {
 }
 
 export const allowedFonts = ['Raster Gothic', 'Gotham (Bitham)', 'Droid Serif', 'LECO 1976']
+
+export const TIME_DIGITS: TimeDigit[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+export const WEEK_LETTERS = ['A', 'D', 'E', 'F', 'H', 'I', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'W'] as const
+export const MONTH_WORDS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'] as const
+export const WEEK_WORDS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const
 
 export type PebbleFont = {
   label: string
@@ -344,6 +374,36 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         tool: 'select',
       }
     }),
+  addImageTime: (x, y) =>
+    set((state) => {
+      const id = uid('image-time')
+      return {
+        nodes: [
+          ...state.nodes,
+          {
+            id,
+            name: `Image Time ${state.nodes.filter((n) => n.type === 'image-time').length + 1}`,
+            type: 'image-time',
+            x,
+            y,
+            width: 24 * 4 + 4 * 2 + 12,
+            height: 32,
+            rotation: 0,
+            stroke: defaultStroke,
+            strokeWidth: 0,
+            mode: 'time',
+            timeFormat: '24h',
+            dateFormat: 'MM',
+            weekFormat: 'letters',
+            glyphs: [],
+            charSpacing: 4,
+            groupSpacing: 12,
+          },
+        ],
+        selectedIds: [id],
+        tool: 'select',
+      }
+    }),
   addCustomFont: async (file) => {
     // Read file as DataURL
     const reader = new FileReader()
@@ -385,7 +445,24 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       stage: file.meta.dimensions,
       backgroundColor: file.meta.backgroundColor,
       customFonts: file.resources.fonts.map(f => ({ ...f, file: null })),
-      nodes: file.scene.map(n => ({ ...n, file: null })) as SceneNode[],
+      nodes: file.scene.map((n) => {
+        if (n.type === 'image-time') {
+          const imageTimeNode = n as ImageTimeNode & { digits?: { digit: string; dataUrl: string; fileName: string }[] }
+          return {
+            ...imageTimeNode,
+            mode: imageTimeNode.mode || 'time',
+            timeFormat: imageTimeNode.timeFormat || '24h',
+            dateFormat: imageTimeNode.dateFormat || 'MM',
+            weekFormat: imageTimeNode.weekFormat || 'letters',
+            glyphs: (imageTimeNode.glyphs || imageTimeNode.digits?.map((digit) => ({
+              key: digit.digit,
+              dataUrl: digit.dataUrl,
+              fileName: digit.fileName,
+            })) || []).map((glyph) => ({ ...glyph, key: glyph.key.toUpperCase(), file: null })),
+          }
+        }
+        return { ...n, file: null }
+      }) as SceneNode[],
       isInitialized: true,
       selectedIds: [],
       tool: 'select'

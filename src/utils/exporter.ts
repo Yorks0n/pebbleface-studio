@@ -6,6 +6,7 @@ import {
   type SceneNode,
   type BitmapNode,
   type TimeNode,
+  type ImageTimeNode,
   type GPathNode,
   type TextNode,
   type CustomFont,
@@ -81,6 +82,7 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
   }
 
   const bitmapNodes = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
+  const imageTimeNodes = nodes.filter((n) => n.type === 'image-time') as ImageTimeNode[]
   for (const bmp of bitmapNodes) {
     const baseName = bmp.fileName ? bmp.fileName.replace(/\.[^/.]+$/, '') : bmp.name
     const fileName = `${baseName}.png`
@@ -100,6 +102,31 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
         pngData = new Uint8Array(await blob.arrayBuffer())
       }
       res.file(fileName, pngData)
+    }
+  }
+
+  for (const [nodeIndex, node] of imageTimeNodes.entries()) {
+    for (const asset of node.glyphs) {
+      const baseName = asset.fileName ? asset.fileName.replace(/\.[^/.]+$/, '') : `${node.name}-${asset.key}`
+      const fileName = `${sanitizeFileName(`${baseName}-${nodeIndex}-${asset.key}`)}.png`
+      const filePath = `images/${fileName}`
+      const resourceName = sanitizeResourceName(`${node.name}_${nodeIndex}_${asset.key}`)
+      media.push({ type: 'png', name: resourceName, file: filePath })
+
+      if (res) {
+        let pngData: Uint8Array
+        const layout = buildImageTimeLayout(node)
+        const digitWidth = Math.max(4, Math.round(layout.charWidth))
+        const digitHeight = Math.max(4, Math.round(node.height))
+        if (asset.dataUrl.startsWith('data:image/png')) {
+          const fittedBlob = await imageToContainedPngBlob(asset.dataUrl, digitWidth, digitHeight)
+          pngData = new Uint8Array(await fittedBlob.arrayBuffer())
+        } else {
+          const blob = await imageToContainedPngBlob(asset.dataUrl, digitWidth, digitHeight)
+          pngData = new Uint8Array(await blob.arrayBuffer())
+        }
+        res.file(fileName, pngData)
+      }
     }
   }
 
@@ -136,6 +163,9 @@ export function saveProjectFile() {
     scene: store.nodes.map((node) => {
       const { ...rest } = node
       if ('file' in (rest as any)) delete (rest as any).file
+      if (rest.type === 'image-time') {
+        rest.glyphs = rest.glyphs.map(({ file, ...glyph }) => glyph)
+      }
       return rest as any
     }),
   }
@@ -224,11 +254,12 @@ const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   const texts = nodes.filter((n) => n.type === 'text')
   const times = nodes.filter((n) => n.type === 'time') as TimeNode[]
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
+  const imageTimes = nodes.filter((n) => n.type === 'image-time') as ImageTimeNode[]
   const gpaths = nodes.filter((n) => n.type === 'gpath') as GPathNode[]
 
   // Determine if we need time updates and at what frequency
   let tickUnit = ''
-  if (times.length > 0) {
+  if (times.length > 0 || imageTimes.length > 0) {
     const hasSeconds = times.some((t) => {
       const fmtStr =
         t.format === 'custom' ? convertCustomFormatToStrftime(t.customFormat || '', t.text) : strftimeForFormat(t.format, t.text)
@@ -238,6 +269,24 @@ const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   }
 
   const bitmapResIds = bitmaps.map((b) => `RESOURCE_ID_${sanitizeResourceName(b.name)}`)
+  const imageTimeDecls = imageTimes
+    .map((node, idx) => {
+      const keys = imageTimeGlyphKeys(node)
+      const resIds = keys
+        .map((key) => {
+          const hasAsset = node.glyphs.some((asset) => asset.key === key)
+          return hasAsset ? `RESOURCE_ID_${sanitizeResourceName(`${node.name}_${idx}_${key}`)}` : '0'
+        })
+        .join(', ')
+      const keyDecl = usesSegmentedImageTime(node)
+        ? `static const char s_image_time_keys_${idx}[${keys.length}] = { ${keys.map((key) => `'${escapeCChar(key)}'`).join(', ')} };`
+        : `static const char *s_image_time_keys_${idx}[${keys.length}] = { ${keys.map((key) => `"${escapeCString(key)}"`).join(', ')} };`
+      return `
+static GBitmap *s_image_time_bitmaps_${idx}[${keys.length}];
+static const uint32_t s_image_time_res_ids_${idx}[${keys.length}] = { ${resIds} };
+${keyDecl}`
+    })
+    .join('\n')
 
   const timeFormats = times
     .map((t, idx) => {
@@ -327,6 +376,59 @@ static GPath *s_gpath_${idx};`
   // ${n.name}
   if (s_bitmaps[${idx}]) {
     graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));
+  }`
+      }
+
+      if (n.type === 'image-time') {
+        const idx = imageTimes.indexOf(n)
+        const value = imageTimeFormatExpression(n)
+        const layout = buildImageTimeLayout(n)
+        const xPositions = layout.positions.map((x) => round(n.x + x)).join(', ')
+        const formatLabel =
+          n.mode === 'time'
+            ? n.timeFormat
+            : n.mode === 'date'
+              ? n.dateFormat
+              : n.weekFormat
+        return `
+  // ${n.name}
+  // mode: ${n.mode}, format: ${formatLabel}, strftime: ${value}
+  {
+    char image_time_value_${idx}[8];
+    time_t now_${idx} = time(NULL);
+    struct tm *tick_${idx} = localtime(&now_${idx});
+    strftime(image_time_value_${idx}, sizeof(image_time_value_${idx}), "${value}", tick_${idx});
+    ${needsUppercaseImageTime(n) ? `
+    for (int i = 0; image_time_value_${idx}[i] != '\\0'; i++) {
+      if (image_time_value_${idx}[i] >= 'a' && image_time_value_${idx}[i] <= 'z') {
+        image_time_value_${idx}[i] = image_time_value_${idx}[i] - 'a' + 'A';
+      }
+    }` : ''}
+    const int char_w_${idx} = ${Math.max(4, round(layout.charWidth))};
+    const int char_h_${idx} = ${Math.max(4, round(n.height))};
+    ${layout.positions.length > 1 ? `
+    const int x_positions_${idx}[${layout.positions.length}] = {
+      ${xPositions}
+    };
+    for (int i = 0; i < ${layout.positions.length}; i++) {
+      char glyph_key = image_time_value_${idx}[i];
+      for (int j = 0; j < ${imageTimeGlyphKeys(n).length}; j++) {
+        if (s_image_time_keys_${idx}[j] != glyph_key) continue;
+        if (s_image_time_bitmaps_${idx}[j]) {
+          graphics_draw_bitmap_in_rect(ctx, s_image_time_bitmaps_${idx}[j],
+                                       GRect(x_positions_${idx}[i], ${round(n.y)}, char_w_${idx}, char_h_${idx}));
+        }
+        break;
+      }
+    }` : `
+    for (int j = 0; j < ${imageTimeGlyphKeys(n).length}; j++) {
+      if (strcmp(image_time_value_${idx}, s_image_time_keys_${idx}[j]) != 0) continue;
+      if (s_image_time_bitmaps_${idx}[j]) {
+        graphics_draw_bitmap_in_rect(ctx, s_image_time_bitmaps_${idx}[j],
+                                     GRect(${round(n.x)}, ${round(n.y)}, char_w_${idx}, char_h_${idx}));
+      }
+      break;
+    }`}
   }`
       }
 
@@ -420,10 +522,42 @@ static GPath *s_gpath_${idx};`
   }`
       : ''
 
+  const loadImageTimes =
+    imageTimes.length > 0
+      ? imageTimes
+          .map(
+            (node, idx) => `
+  for (int i = 0; i < ${imageTimeGlyphKeys(node).length}; i++) {
+    if (s_image_time_res_ids_${idx}[i] != 0) {
+      s_image_time_bitmaps_${idx}[i] = gbitmap_create_with_resource(s_image_time_res_ids_${idx}[i]);
+    } else {
+      s_image_time_bitmaps_${idx}[i] = NULL;
+    }
+  }`,
+          )
+          .join('\n')
+      : ''
+
+  const unloadImageTimes =
+    imageTimes.length > 0
+      ? imageTimes
+          .map(
+            (node, idx) => `
+  for (int i = 0; i < ${imageTimeGlyphKeys(node).length}; i++) {
+    if (s_image_time_bitmaps_${idx}[i]) {
+      gbitmap_destroy(s_image_time_bitmaps_${idx}[i]);
+      s_image_time_bitmaps_${idx}[i] = NULL;
+    }
+  }`,
+          )
+          .join('')
+      : ''
+
   return `#include <pebble.h>
 
 static Window *s_main_window;
 static Layer *s_root_layer;${bitmapDecls}
+${imageTimeDecls}
 ${customFontDecls.join('\n')}
 ${gpathPointArrays}
 
@@ -461,6 +595,7 @@ ${drawAllLayers}
 static void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);${loadBitmaps}
+${loadImageTimes}
 ${customFontLoads.join('\n')}
 ${createGPaths}
 
@@ -472,6 +607,7 @@ ${tickUnit ? `  tick_timer_service_subscribe(${tickUnit}, tick_handler);` : ''}
 
 static void main_window_unload(Window *window) {
 ${tickUnit ? `  tick_timer_service_unsubscribe();` : ''}${unloadBitmaps}
+${unloadImageTimes}
   layer_destroy(s_root_layer);
 ${customFontUnloads.join('\n')}
 ${destroyGPaths}
@@ -515,6 +651,66 @@ const sanitizeResourceName = (name: string) =>
     .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .toUpperCase() || 'IMAGE_1'
+
+const sanitizeFileName = (name: string) =>
+  name
+    .trim()
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'image'
+
+const usesSegmentedImageTime = (node: ImageTimeNode) =>
+  !(node.mode === 'date' && node.dateFormat === 'MMM') && !(node.mode === 'week' && node.weekFormat === 'words')
+
+const imageTimeGlyphKeys = (node: ImageTimeNode) => {
+  if (node.mode === 'week') {
+    return node.weekFormat === 'words'
+      ? ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+      : ['A', 'D', 'E', 'F', 'H', 'I', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'W']
+  }
+  if (node.mode === 'date' && node.dateFormat === 'MMM') {
+    return ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+  }
+  return ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+}
+
+const imageTimeFormatExpression = (node: ImageTimeNode) => {
+  if (node.mode === 'date') {
+    if (node.dateFormat === 'MMM') return '%b'
+    if (node.dateFormat === 'DD') return '%d'
+    return '%m'
+  }
+  if (node.mode === 'week') return '%a'
+  return node.timeFormat === '12h' ? '%I%M' : '%H%M'
+}
+
+const needsUppercaseImageTime = (node: ImageTimeNode) => node.mode === 'week' || (node.mode === 'date' && node.dateFormat === 'MMM')
+
+const buildImageTimeLayout = (node: ImageTimeNode) => {
+  const charCount = usesSegmentedImageTime(node)
+    ? node.mode === 'week'
+      ? 3
+      : node.mode === 'date'
+        ? 2
+        : 4
+    : 1
+  const gapCount = Math.max(0, charCount - 1)
+  const totalGap = charCount === 4 ? node.charSpacing * 2 + node.groupSpacing : node.charSpacing * gapCount
+  const charWidth = Math.max(4, (node.width - totalGap) / charCount)
+  const positions: number[] = []
+  let x = 0
+  for (let i = 0; i < charCount; i += 1) {
+    positions.push(x)
+    x += charWidth
+    if (i < charCount - 1) {
+      x += charCount === 4 && i === 1 ? node.groupSpacing : node.charSpacing
+    }
+  }
+  return { charWidth, positions }
+}
+
+const escapeCChar = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+const escapeCString = (value: string) => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
 const strftimeForFormat = (format: TimeNode['format'], kind: TimeNode['text']) => {
   switch (format) {
@@ -604,4 +800,49 @@ const imageToPngBlob = (src: string): Promise<Blob> => {
     img.onerror = (err) => reject(err)
     img.src = src
   })
+}
+
+const imageToContainedPngBlob = (src: string, targetWidth: number, targetHeight: number): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, targetWidth)
+      canvas.height = Math.max(1, targetHeight)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'))
+        return
+      }
+      const fitted = fitBitmapWithinBox(img.width, img.height, canvas.width, canvas.height)
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.imageSmoothingEnabled = true
+      ctx.drawImage(img, fitted.offsetX, fitted.offsetY, fitted.width, fitted.height)
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob)
+        } else {
+          reject(new Error('Canvas toBlob failed'))
+        }
+      }, 'image/png')
+    }
+    img.onerror = (err) => reject(err)
+    img.src = src
+  })
+}
+
+const fitBitmapWithinBox = (sourceWidth: number, sourceHeight: number, maxWidth: number, maxHeight: number) => {
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    return { width: maxWidth, height: maxHeight, offsetX: 0, offsetY: 0 }
+  }
+  const scale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight)
+  const width = Math.max(1, Math.round(sourceWidth * scale))
+  const height = Math.max(1, Math.round(sourceHeight * scale))
+  return {
+    width,
+    height,
+    offsetX: Math.floor((maxWidth - width) / 2),
+    offsetY: Math.floor((maxHeight - height) / 2),
+  }
 }

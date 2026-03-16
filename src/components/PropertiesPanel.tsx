@@ -1,5 +1,5 @@
 import { Trash, AlertCircle, Info } from 'lucide-react'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   useSceneStore,
   type SceneNode,
@@ -7,6 +7,15 @@ import {
   type TextNode,
   type BitmapNode,
   type TimeNode,
+  type ImageTimeNode,
+  type ImageTimeMode,
+  type ImageTimeTimeFormat,
+  type ImageTimeDateFormat,
+  type ImageTimeWeekFormat,
+  TIME_DIGITS,
+  MONTH_WORDS,
+  WEEK_LETTERS,
+  WEEK_WORDS,
   type GPathNode,
   timeFormatOptions,
   SYSTEM_FONTS,
@@ -19,7 +28,7 @@ import { Label } from './ui/label'
 import { Switch } from './ui/switch'
 import { ColorSelect } from './ColorSelect'
 
-type SceneNodeKey = keyof (RectNode & TextNode & BitmapNode & TimeNode & GPathNode)
+type SceneNodeKey = keyof (RectNode & TextNode & BitmapNode & TimeNode & ImageTimeNode & GPathNode)
 type TimeKeys = keyof TimeNode
 type FontFilter = 'digits' | 'standard' | 'extended' | 'none'
 
@@ -68,6 +77,7 @@ export const PropertiesPanel = () => {
   } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const digitInputRef = useRef<HTMLInputElement>(null)
 
   // Determine primary group based on stage dimensions
   const isBasalt = stage.width === 144
@@ -106,6 +116,10 @@ export const PropertiesPanel = () => {
   const updateTime = (key: TimeKeys, value: TimeNode[TimeKeys]) => {
     if (!target || target.type !== 'time') return
     updateNode(target.id, { [key]: value } as Partial<SceneNode>)
+  }
+  const updateImageTime = (data: Partial<ImageTimeNode>) => {
+    if (!target || target.type !== 'image-time') return
+    updateNode(target.id, data as Partial<SceneNode>)
   }
 
   // Helper to find the current font object based on node properties
@@ -183,6 +197,42 @@ export const PropertiesPanel = () => {
         } as any)
       }
     }
+    e.target.value = ''
+  }
+
+  const handleDigitUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!target || target.type !== 'image-time') return
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const glyphAssets = (
+      await Promise.all(
+        files.map(async (file) => {
+          if (file.type !== 'image/png') return null
+          const key = parseGlyphKeyFromFileName(file.name)
+          if (!key) return null
+          const dataUrl = await readFileAsDataUrl(file)
+          return {
+            key,
+            dataUrl,
+            fileName: file.name,
+            file,
+          }
+        }),
+      )
+    ).filter(Boolean) as ImageTimeNode['glyphs']
+
+    if (glyphAssets.length > 0) {
+      const merged = [...target.glyphs]
+      glyphAssets.forEach((asset) => {
+        const index = merged.findIndex((item) => item.key === asset.key)
+        if (index >= 0) merged[index] = asset
+        else merged.push(asset)
+      })
+      merged.sort((a, b) => a.key.localeCompare(b.key))
+      updateImageTime({ glyphs: merged })
+    }
+
     e.target.value = ''
   }
 
@@ -302,6 +352,7 @@ export const PropertiesPanel = () => {
   }
 
   const isGPath = target.type === 'gpath'
+  const isImageTime = target.type === 'image-time'
 
   return (
     <div className="space-y-3 border border-black p-4 bg-white" style={bgStyle}>
@@ -348,24 +399,28 @@ export const PropertiesPanel = () => {
           onChange={(e) => update('height', Math.max(4, parseFloat(e.target.value) || 0))}
         />
       </GridPair>
-      <GridPair label="Rotation">
-        <Input
-          type="number"
-          value={Math.round(target.rotation)}
-          onChange={(e) => update('rotation', parseFloat(e.target.value) || 0)}
-        />
-      </GridPair>
+      {!isImageTime && (
+        <GridPair label="Rotation">
+          <Input
+            type="number"
+            value={Math.round(target.rotation)}
+            onChange={(e) => update('rotation', parseFloat(e.target.value) || 0)}
+          />
+        </GridPair>
+      )}
       {'fill' in target && <ColorSelect label="Fill" value={target.fill} onChange={(c) => update('fill', c)} />}
-      <ColorSelect label="Stroke" value={target.stroke} onChange={(c) => update('stroke', c)} />
-      <GridPair label="Stroke px">
-        <Input
-          type="number"
-          value={Math.round(target.strokeWidth)}
-          min={0}
-          step={1}
-          onChange={(e) => update('strokeWidth', Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
-        />
-      </GridPair>
+      {!isImageTime && <ColorSelect label="Stroke" value={target.stroke} onChange={(c) => update('stroke', c)} />}
+      {!isImageTime && (
+        <GridPair label="Stroke px">
+          <Input
+            type="number"
+            value={Math.round(target.strokeWidth)}
+            min={0}
+            step={1}
+            onChange={(e) => update('strokeWidth', Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
+          />
+        </GridPair>
+      )}
       {target.type === 'text' && (
         <>
           <GridPair label="Text">
@@ -537,6 +592,145 @@ export const PropertiesPanel = () => {
           <div className="text-sm text-black/80 truncate">{target.fileName}</div>
         </GridPair>
       )}
+      {target.type === 'image-time' && (
+        <>
+          <GridPair label="Mode">
+            <select
+              className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
+              value={target.mode}
+              onChange={(e) => updateImageTime({ mode: e.target.value as ImageTimeMode })}
+            >
+              <option value="time">Time</option>
+              <option value="date">Date</option>
+              <option value="week">Week</option>
+            </select>
+          </GridPair>
+          <GridPair label="Format">
+            {target.mode === 'time' && (
+              <select
+                className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
+                value={target.timeFormat}
+                onChange={(e) => updateImageTime({ timeFormat: e.target.value as ImageTimeTimeFormat })}
+              >
+                <option value="24h">24h</option>
+                <option value="12h">12h</option>
+              </select>
+            )}
+            {target.mode === 'date' && (
+              <select
+                className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
+                value={target.dateFormat}
+                onChange={(e) => updateImageTime({ dateFormat: e.target.value as ImageTimeDateFormat })}
+              >
+                <option value="MM">MM</option>
+                <option value="DD">DD</option>
+                <option value="MMM">MMM</option>
+              </select>
+            )}
+            {target.mode === 'week' && (
+              <select
+                className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
+                value={target.weekFormat}
+                onChange={(e) => updateImageTime({ weekFormat: e.target.value as ImageTimeWeekFormat })}
+              >
+                <option value="letters">Letters (MON to M,O,N)</option>
+                <option value="words">Words (MON..SUN)</option>
+              </select>
+            )}
+          </GridPair>
+          <GridPair label="PNGs" helpContent={imageTimeUploadHelp(target)}>
+            <Button
+              variant="outline"
+              className="w-full min-w-0 justify-start px-3 text-left whitespace-normal break-words h-auto py-2"
+              onClick={() => digitInputRef.current?.click()}
+            >
+              Upload PNGs
+            </Button>
+          </GridPair>
+          <GridPair label="Status">
+            <div className="min-w-0 break-words text-sm leading-snug text-black/80">
+              {target.glyphs.length} loaded
+              {requiredGlyphKeys(target).length > 0
+                ? ` · Missing ${requiredGlyphKeys(target).filter((key) => !target.glyphs.some((item) => item.key === key)).join(', ')}`
+                : ''}
+            </div>
+          </GridPair>
+          {usesSegmentedGlyphs(target) ? (
+            <GridPair label="Digit W">
+              <Input
+                type="number"
+                min={4}
+                value={Math.round(imageTimeDigitWidth(target))}
+                onChange={(e) => {
+                  const digitWidth = Math.max(4, parseFloat(e.target.value) || 0)
+                  updateImageTime({
+                    width: digitWidth * segmentedCharCount(target) + totalSegmentGap(target),
+                  })
+                }}
+              />
+            </GridPair>
+          ) : null}
+          <GridPair label="Digit H">
+            <Input
+              type="number"
+              min={4}
+              value={Math.round(target.height)}
+              onChange={(e) => updateImageTime({ height: Math.max(4, parseFloat(e.target.value) || 0) })}
+            />
+          </GridPair>
+          {usesSegmentedGlyphs(target) ? (
+            <>
+              <GridPair label="Char Gap">
+                <Input
+                  type="number"
+                  min={0}
+                  value={Math.round(target.charSpacing)}
+                  onChange={(e) => {
+                    const charSpacing = Math.max(0, parseFloat(e.target.value) || 0)
+                    updateImageTime({
+                      charSpacing,
+                      width: imageTimeDigitWidth(target) * segmentedCharCount(target) + totalSegmentGap({ ...target, charSpacing }),
+                    })
+                  }}
+                />
+              </GridPair>
+              {segmentedCharCount(target) === 4 ? (
+                <GridPair label="Middle Gap">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={Math.round(target.groupSpacing)}
+                    onChange={(e) => {
+                      const groupSpacing = Math.max(0, parseFloat(e.target.value) || 0)
+                      updateImageTime({
+                        groupSpacing,
+                        width: imageTimeDigitWidth(target) * segmentedCharCount(target) + totalSegmentGap({ ...target, groupSpacing }),
+                      })
+                    }}
+                  />
+                </GridPair>
+              ) : null}
+            </>
+          ) : null}
+          <div className="grid grid-cols-5 gap-2 border border-black/10 p-2">
+            {requiredGlyphKeys(target).map((key) => {
+              const asset = target.glyphs.find((item) => item.key === key)
+              return (
+                <div key={key} className="min-w-0 border border-black/15 bg-white p-2 text-center">
+                  <GlyphPreviewLabel value={key} />
+                  {asset ? (
+                    <img src={asset.dataUrl} alt={`glyph ${key}`} className="mx-auto mt-1 h-8 w-auto object-contain" />
+                  ) : (
+                    <div className="mt-1 grid min-h-8 place-items-center break-words text-[10px] leading-tight text-black/35">
+                      NA
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
       {target.type === 'gpath' && (
         <GridPair label="Points">
           <div className="text-sm text-black/80">{target.points.length}</div>
@@ -549,6 +743,153 @@ export const PropertiesPanel = () => {
         className="hidden"
         onChange={handleCustomUpload}
       />
+      <input
+        type="file"
+        accept="image/png"
+        multiple
+        ref={digitInputRef}
+        className="hidden"
+        onChange={handleDigitUpload}
+      />
+    </div>
+  )
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
+function parseGlyphKeyFromFileName(name: string) {
+  const base = name.replace(/\.[^/.]+$/, '').trim().toUpperCase()
+  if (/^[0-9A-Z]$/.test(base)) return base
+  if (/^[A-Z]{3}$/.test(base)) return base
+  const wordMatch = base.match(/(^|[^A-Z])(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|SUN|MON|TUE|WED|THU|FRI|SAT)([^A-Z]|$)/)
+  if (wordMatch?.[2]) return wordMatch[2]
+  const charMatch = base.match(/(^|[^0-9A-Z])([0-9A-Z])([^0-9A-Z]|$)/)
+  return charMatch?.[2] || null
+}
+
+function imageTimeDigitWidth(node: ImageTimeNode) {
+  return Math.max(4, (node.width - totalSegmentGap(node)) / Math.max(1, segmentedCharCount(node)))
+}
+
+function usesSegmentedGlyphs(node: ImageTimeNode) {
+  return !(node.mode === 'date' && node.dateFormat === 'MMM') && !(node.mode === 'week' && node.weekFormat === 'words')
+}
+
+function segmentedCharCount(node: ImageTimeNode) {
+  if (node.mode === 'week') return 3
+  if (node.mode === 'date' && (node.dateFormat === 'MM' || node.dateFormat === 'DD')) return 2
+  return 4
+}
+
+function totalSegmentGap(node: ImageTimeNode) {
+  const count = segmentedCharCount(node)
+  if (count <= 1) return 0
+  return count === 4 ? node.charSpacing * 2 + node.groupSpacing : node.charSpacing * (count - 1)
+}
+
+function requiredGlyphKeys(node: ImageTimeNode) {
+  if (node.mode === 'week') {
+    return node.weekFormat === 'words' ? [...WEEK_WORDS] : [...WEEK_LETTERS]
+  }
+  if (node.mode === 'date') {
+    if (node.dateFormat === 'MMM') return [...MONTH_WORDS]
+    return [...TIME_DIGITS]
+  }
+  return [...TIME_DIGITS]
+}
+
+function imageTimeUploadHelp(node: ImageTimeNode) {
+  const lines = imageTimeUploadHelpLines(node)
+  return (
+    <div className="text-[10px] leading-relaxed">
+      <div className="font-bold border-b border-black/10 mb-1.5 pb-1 font-sans text-black">
+        File Naming
+      </div>
+      {lines.map((line) => (
+        <div key={line} className="text-black/70">
+          {line}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function imageTimeUploadHelpLines(node: ImageTimeNode) {
+  if (node.mode === 'time') {
+    return [
+      'Upload PNG files for digits 0-9.',
+      'Recommended names: 0.png, 1.png ... 9.png.',
+    ]
+  }
+  if (node.mode === 'date') {
+    if (node.dateFormat === 'MMM') {
+      return [
+        'Upload 12 PNG files for month names.',
+        'Required names: JAN.png to DEC.png.',
+        'Each file name should contain the full 3-letter month code.',
+      ]
+    }
+    return [
+      'Upload PNG files for digits 0-9.',
+      'Recommended names: 0.png, 1.png ... 9.png.',
+    ]
+  }
+  if (node.weekFormat === 'words') {
+    return [
+      'Upload 7 PNG files for weekday names.',
+      'Required names: SUN.png, MON.png ... SAT.png.',
+      'Each file name should contain the full 3-letter weekday code.',
+    ]
+  }
+  return [
+    'Upload PNG files for weekday letters.',
+    'Required letters: A, D, E, F, H, I, M, N, O, R, S, T, U, W.',
+    'Recommended names: M.png, O.png, N.png or letter-M.png style.',
+  ]
+}
+
+function GlyphPreviewLabel({ value }: { value: string }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [stacked, setStacked] = useState(false)
+
+  useEffect(() => {
+    const element = ref.current
+    if (!element || value.length !== 3) {
+      setStacked(false)
+      return
+    }
+
+    const update = () => {
+      const width = element.clientWidth
+      setStacked(width < 26)
+    }
+
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [value])
+
+  const compact = value.length === 3
+  return (
+    <div ref={ref} className="min-w-0 text-[10px] font-semibold text-black/50">
+      <div className={compact && stacked ? 'hidden' : 'text-center whitespace-nowrap'}>
+        {value}
+      </div>
+      {compact && stacked ? (
+        <div className="flex flex-col items-center leading-none">
+          {value.split('').map((char, index) => (
+            <span key={`${value}-${index}`}>{char}</span>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -563,8 +904,8 @@ const GridPair = ({
   helpContent?: React.ReactNode
   children: React.ReactNode
 }) => (
-  <div className="grid grid-cols-[90px_1fr] items-center gap-3">
-    <div className="flex items-center gap-1.5">
+  <div className="grid grid-cols-[78px_minmax(0,1fr)] items-start gap-3">
+    <div className="flex min-w-0 items-center gap-1.5">
       <Label className="text-[11px] text-[#666]">{label}</Label>
       {helpContent && (
         <div className="group relative flex items-center">
@@ -575,6 +916,6 @@ const GridPair = ({
         </div>
       )}
     </div>
-    {children}
+    <div className="min-w-0">{children}</div>
   </div>
 )

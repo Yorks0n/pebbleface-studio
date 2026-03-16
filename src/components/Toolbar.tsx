@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
-import { Clock3, Image as ImageIcon, PenTool, Square, Type } from 'lucide-react'
+import { Clock3, Images, Image as ImageIcon, PenTool, Square, Type } from 'lucide-react'
 import { useSceneStore } from '../store/scene'
 import { Button } from './ui/button'
 import { ImageImportDialog } from './ImageImportDialog'
 
 export const Toolbar = () => {
-  const { addRect, addText, addTimeText, stage, setTool, tool, setSelection } = useSceneStore()
+  const { addRect, addText, addTimeText, addImageTime, stage, setTool, tool, setSelection } = useSceneStore()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const addBitmap = useSceneStore((s) => s.addBitmap)
 
@@ -40,6 +40,7 @@ export const Toolbar = () => {
   const addRectCentered = () => addRect(centerPoint.x - 32, centerPoint.y - 24)
   const addTextCentered = () => addText(centerPoint.x - 48, centerPoint.y - 10)
   const addTimeCentered = () => addTimeText(centerPoint.x - 48, centerPoint.y + 16)
+  const addImageTimeCentered = () => addImageTime(centerPoint.x - 58, centerPoint.y - 16)
   const enableGPathTool = () => {
     setSelection([])
     setTool(tool === 'gpath' ? 'select' : 'gpath')
@@ -63,6 +64,10 @@ export const Toolbar = () => {
         <Button variant="subtle" onClick={addTimeCentered} size="lg" className="justify-start">
           <Clock3 size={16} />
           Time / Date
+        </Button>
+        <Button variant="subtle" onClick={addImageTimeCentered} size="lg" className="justify-start">
+          <Images size={16} />
+          PNG Time / Date
         </Button>
         <Button variant="subtle" onClick={triggerFile} size="lg" className="justify-start">
           <ImageIcon size={16} />
@@ -102,5 +107,3 @@ export const Toolbar = () => {
     </div>
   )
 }
-
-
