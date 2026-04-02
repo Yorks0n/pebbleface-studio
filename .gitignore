@@ -21,3 +21,4 @@ tsconfig.tsbuildinfo
 # Local AI config
 .gemini
 .claude
+SKILL.md

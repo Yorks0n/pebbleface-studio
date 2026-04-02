@@ -84,7 +84,7 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
   const bitmapNodes = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
   const imageTimeNodes = nodes.filter((n) => n.type === 'image-time') as ImageTimeNode[]
   for (const bmp of bitmapNodes) {
-    const baseName = bmp.fileName ? bmp.fileName.replace(/\.[^/.]+$/, '') : bmp.name
+    const baseName = sanitizeFileName(bmp.fileName ? bmp.fileName.replace(/\.[^/.]+$/, '') : bmp.name)
     const fileName = `${baseName}.png`
     const filePath = `images/${fileName}`
     const resourceName = sanitizeResourceName(bmp.name)
@@ -362,7 +362,7 @@ static GPath *s_gpath_${idx};`
         const fillHex = toHexInt(n.fill || '#000000')
         const strokeHex = toHexInt(n.stroke || '#000000')
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_fill_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
   graphics_fill_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), 0, GCornerNone);
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
@@ -373,7 +373,7 @@ static GPath *s_gpath_${idx};`
       if (n.type === 'bitmap') {
         const idx = bitmaps.indexOf(n)
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   if (s_bitmaps[${idx}]) {
     graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));
   }`
@@ -391,7 +391,7 @@ static GPath *s_gpath_${idx};`
               ? n.dateFormat
               : n.weekFormat
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   // mode: ${n.mode}, format: ${formatLabel}, strftime: ${value}
   {
     char image_time_value_${idx}[8];
@@ -436,7 +436,7 @@ static GPath *s_gpath_${idx};`
         const idx = drawableGPaths.indexOf(n)
         const strokeHex = toHexInt(n.stroke || '#ffffff')
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
   graphics_context_set_stroke_width(ctx, ${Math.max(1, Math.round(n.strokeWidth || 1))});
   if (s_gpath_${idx}) {
@@ -452,7 +452,7 @@ static GPath *s_gpath_${idx};`
           : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
 
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
   graphics_draw_text(ctx, "${escapeText(n.text || '')}", ${fontExpr},
                      GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);`
@@ -466,7 +466,7 @@ static GPath *s_gpath_${idx};`
           : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
 
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   {
     char time_buffer_${idx}[32];
     time_t now_${idx} = time(NULL);
