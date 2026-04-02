@@ -22,6 +22,7 @@ import {
   dateParts,
   timeParts,
 } from '../store/scene'
+import { parseGlyphKeyFromFileName } from '../lib/image-time'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -764,15 +765,6 @@ function readFileAsDataUrl(file: File) {
   })
 }
 
-function parseGlyphKeyFromFileName(name: string) {
-  const base = name.replace(/\.[^/.]+$/, '').trim().toUpperCase()
-  if (/^[0-9A-Z]$/.test(base)) return base
-  if (/^[A-Z]{3}$/.test(base)) return base
-  const wordMatch = base.match(/(^|[^A-Z])(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|SUN|MON|TUE|WED|THU|FRI|SAT)([^A-Z]|$)/)
-  if (wordMatch?.[2]) return wordMatch[2]
-  const charMatch = base.match(/(^|[^0-9A-Z])([0-9A-Z])([^0-9A-Z]|$)/)
-  return charMatch?.[2] || null
-}
 
 function imageTimeDigitWidth(node: ImageTimeNode) {
   return Math.max(4, (node.width - totalSegmentGap(node)) / Math.max(1, segmentedCharCount(node)))

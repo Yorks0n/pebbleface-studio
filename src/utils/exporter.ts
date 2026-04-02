@@ -14,6 +14,14 @@ import {
   type ProjectFile,
 } from '../store/scene'
 import { randomUuid } from '../lib/utils'
+import {
+  usesSegmentedImageTime,
+  imageTimeGlyphKeys,
+  imageTimeFormatExpression,
+  needsUppercaseImageTime,
+  buildImageTimePositions,
+  imageTimeCharCount,
+} from '../lib/image-time'
 
 type PebbleResource = {
   type: string
@@ -659,55 +667,8 @@ const sanitizeFileName = (name: string) =>
     .replace(/[^A-Za-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'image'
 
-const usesSegmentedImageTime = (node: ImageTimeNode) =>
-  !(node.mode === 'date' && node.dateFormat === 'MMM') && !(node.mode === 'week' && node.weekFormat === 'words')
-
-const imageTimeGlyphKeys = (node: ImageTimeNode) => {
-  if (node.mode === 'week') {
-    return node.weekFormat === 'words'
-      ? ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-      : ['A', 'D', 'E', 'F', 'H', 'I', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'W']
-  }
-  if (node.mode === 'date' && node.dateFormat === 'MMM') {
-    return ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  }
-  return ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-}
-
-const imageTimeFormatExpression = (node: ImageTimeNode) => {
-  if (node.mode === 'date') {
-    if (node.dateFormat === 'MMM') return '%b'
-    if (node.dateFormat === 'DD') return '%d'
-    return '%m'
-  }
-  if (node.mode === 'week') return '%a'
-  return node.timeFormat === '12h' ? '%I%M' : '%H%M'
-}
-
-const needsUppercaseImageTime = (node: ImageTimeNode) => node.mode === 'week' || (node.mode === 'date' && node.dateFormat === 'MMM')
-
-const buildImageTimeLayout = (node: ImageTimeNode) => {
-  const charCount = usesSegmentedImageTime(node)
-    ? node.mode === 'week'
-      ? 3
-      : node.mode === 'date'
-        ? 2
-        : 4
-    : 1
-  const gapCount = Math.max(0, charCount - 1)
-  const totalGap = charCount === 4 ? node.charSpacing * 2 + node.groupSpacing : node.charSpacing * gapCount
-  const charWidth = Math.max(4, (node.width - totalGap) / charCount)
-  const positions: number[] = []
-  let x = 0
-  for (let i = 0; i < charCount; i += 1) {
-    positions.push(x)
-    x += charWidth
-    if (i < charCount - 1) {
-      x += charCount === 4 && i === 1 ? node.groupSpacing : node.charSpacing
-    }
-  }
-  return { charWidth, positions }
-}
+const buildImageTimeLayout = (node: ImageTimeNode) =>
+  buildImageTimePositions(node.width, imageTimeCharCount(node), node.charSpacing, node.groupSpacing)
 
 const escapeCChar = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 const escapeCString = (value: string) => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')

@@ -14,10 +14,19 @@ pnpm dev           # dev server (localhost:5173)
 pnpm build         # tsc -b && vite build → /dist
 pnpm lint          # ESLint 9 flat config
 pnpm format        # Prettier on src/**/*.{ts,tsx,css,md}
+pnpm test          # vitest run (51 unit tests)
 pnpm preview       # preview production build
 ```
 
-No automated tests exist yet; `pnpm test` is a placeholder.
+## Testing
+
+Run: `pnpm test`. See `TESTING.md` for conventions.
+
+- Test files live next to source (`foo.ts` → `foo.test.ts`)
+- When writing pure functions, write a corresponding test
+- When fixing a bug, write a regression test
+- When adding a conditional, test both paths
+- Never commit code that makes existing tests fail
 
 ## Architecture
 

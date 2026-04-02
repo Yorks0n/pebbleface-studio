@@ -18,6 +18,7 @@ import {
   pebbleGrayHexFromTone,
   pebbleGrayToneFromHexUnquantized,
 } from '../lib/utils'
+import { imageTimeRenderedValue, buildImageTimePositions } from '../lib/image-time'
 import { useState } from 'react'
 
 type BitmapProps = {
@@ -154,7 +155,7 @@ const ImageTimeDigitSprite = ({ dataUrl, x, width, height, aplitePreview }: Imag
 
 const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef }: ImageTimeProps) => {
   const rendered = imageTimeRenderedValue(now, node)
-  const positions = rendered.type === 'segmented'
+  const layout = rendered.type === 'segmented'
     ? buildImageTimePositions(node.width, rendered.parts.length, Math.max(0, node.charSpacing), Math.max(0, node.groupSpacing))
     : null
 
@@ -186,8 +187,8 @@ const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDrag
               <ImageTimeDigitSprite
                 key={`${node.id}-${char}-${index}`}
                 dataUrl={asset?.dataUrl}
-                x={positions?.xs[index] || 0}
-                width={positions?.charWidth || node.width}
+                x={layout?.positions[index] || 0}
+                width={layout?.charWidth || node.width}
                 height={node.height}
                 aplitePreview={aplitePreview}
               />
@@ -666,46 +667,6 @@ export const CanvasStage = () => {
   )
 }
 
-function imageTimeRenderedValue(now: Date, node: ImageTimeNode): { type: 'segmented'; parts: string[] } | { type: 'whole'; key: string } {
-  if (node.mode === 'date') {
-    if (node.dateFormat === 'MMM') {
-      return { type: 'whole', key: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(now).toUpperCase() }
-    }
-    if (node.dateFormat === 'DD') {
-      return { type: 'segmented', parts: String(now.getDate()).padStart(2, '0').split('') }
-    }
-    return { type: 'segmented', parts: String(now.getMonth() + 1).padStart(2, '0').split('') }
-  }
-  if (node.mode === 'week') {
-    const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(now).toUpperCase()
-    if (node.weekFormat === 'words') {
-      return { type: 'whole', key: weekday }
-    }
-    return { type: 'segmented', parts: weekday.split('') }
-  }
-  if (node.timeFormat === '12h') {
-    const hours = now.getHours() % 12 || 12
-    return { type: 'segmented', parts: `${String(hours).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`.split('') }
-  }
-  return { type: 'segmented', parts: `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`.split('') }
-}
-
-function buildImageTimePositions(totalWidth: number, charCount: number, charSpacing: number, groupSpacing: number) {
-  const xs: number[] = []
-  if (charCount <= 0) return { xs, charWidth: Math.max(4, totalWidth) }
-  const gapCount = Math.max(0, charCount - 1)
-  const totalGap = charCount === 4 ? charSpacing * 2 + groupSpacing : charSpacing * gapCount
-  const charWidth = Math.max(4, (totalWidth - totalGap) / charCount)
-  let x = 0
-  for (let i = 0; i < charCount; i += 1) {
-    xs.push(x)
-    x += charWidth
-    if (i < charCount - 1) {
-      x += charCount === 4 && i === 1 ? groupSpacing : charSpacing
-    }
-  }
-  return { xs, charWidth }
-}
 
 function fitBitmapWithinBox(sourceWidth: number, sourceHeight: number, maxWidth: number, maxHeight: number) {
   if (sourceWidth <= 0 || sourceHeight <= 0) {
