@@ -12,13 +12,30 @@ import {
   type CustomFont,
   type FontFilter,
   type ProjectFile,
+  type ProjectSceneNode,
 } from '../store/scene'
 import { randomUuid } from '../lib/utils'
+import {
+  usesSegmentedImageTime,
+  imageTimeGlyphKeys,
+  imageTimeFormatExpression,
+  needsUppercaseImageTime,
+  buildImageTimePositions,
+  imageTimeCharCount,
+} from '../lib/image-time'
 
 type PebbleResource = {
   type: string
   name: string
   file: string
+}
+
+type PebbleFontResource = {
+  type: 'font'
+  name: string
+  file: string
+  compatibility: string
+  characterRegex?: string
 }
 
 const dataUrlToUint8 = async (dataUrl: string) => {
@@ -34,7 +51,7 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
 
   const zip = new JSZip()
   const media: PebbleResource[] = []
-  const fonts: any[] = [] // Pebble font resources
+  const fonts: PebbleFontResource[] = []
 
   const src = zip.folder('src')
   const res = zip.folder('resources')?.folder('images')
@@ -84,7 +101,7 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
   const bitmapNodes = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
   const imageTimeNodes = nodes.filter((n) => n.type === 'image-time') as ImageTimeNode[]
   for (const bmp of bitmapNodes) {
-    const baseName = bmp.fileName ? bmp.fileName.replace(/\.[^/.]+$/, '') : bmp.name
+    const baseName = sanitizeFileName(bmp.fileName ? bmp.fileName.replace(/\.[^/.]+$/, '') : bmp.name)
     const fileName = `${baseName}.png`
     const filePath = `images/${fileName}`
     const resourceName = sanitizeResourceName(bmp.name)
@@ -143,6 +160,32 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
   saveAs(blob, fileName)
 }
 
+const serializeProjectNode = (node: SceneNode): ProjectSceneNode => {
+  if (node.type === 'bitmap') {
+    return {
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      x: node.x,
+      y: node.y,
+      width: node.width,
+      height: node.height,
+      rotation: node.rotation,
+      stroke: node.stroke,
+      strokeWidth: node.strokeWidth,
+      dataUrl: node.dataUrl,
+      fileName: node.fileName,
+    }
+  }
+  if (node.type === 'image-time') {
+    return {
+      ...node,
+      glyphs: node.glyphs.map(({ key, dataUrl, fileName }) => ({ key, dataUrl, fileName })),
+    }
+  }
+  return node
+}
+
 export function saveProjectFile() {
   const store = useSceneStore.getState()
 
@@ -160,21 +203,14 @@ export function saveProjectFile() {
     resources: {
       fonts: store.customFonts.map(({ id, name, dataUrl }) => ({ id, name, dataUrl })),
     },
-    scene: store.nodes.map((node) => {
-      const { ...rest } = node
-      if ('file' in (rest as any)) delete (rest as any).file
-      if (rest.type === 'image-time') {
-        rest.glyphs = rest.glyphs.map(({ file, ...glyph }) => glyph)
-      }
-      return rest as any
-    }),
+    scene: store.nodes.map(serializeProjectNode),
   }
 
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' })
   saveAs(blob, `${store.projectName || 'project'}.pfs`)
 }
 
-const templatePebblePackage = (projectName: string, resources: PebbleResource[], fonts: any[], platforms: string[]) => {
+const templatePebblePackage = (projectName: string, resources: PebbleResource[], fonts: PebbleFontResource[], platforms: string[]) => {
   const store = useSceneStore.getState()
   return {
     name: slugify(projectName),
@@ -251,6 +287,8 @@ const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   const store = useSceneStore.getState()
   const backgroundColorHex = toHexInt(store.backgroundColor || '#000000')
+  const designWidth = Math.max(1, Math.round(store.stage.width || 144))
+  const designHeight = Math.max(1, Math.round(store.stage.height || 168))
   const texts = nodes.filter((n) => n.type === 'text')
   const times = nodes.filter((n) => n.type === 'time') as TimeNode[]
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
@@ -356,26 +394,31 @@ static GPath *s_gpath_${idx};`
 
   const drawableGPaths = gpaths.filter((n) => n.points.length > 1)
 
+  const mappedRect = (n: Pick<SceneNode, 'x' | 'y' | 'width' | 'height'>) =>
+    `mapped_rect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}, bounds)`
+  const mappedX = (x: number, width: number) => `map_x(${round(x)}, ${round(width)}, bounds)`
+  const mappedY = (y: number, height: number) => `map_y(${round(y)}, ${round(height)}, bounds)`
+
   const drawAllLayers = nodes
     .map((n) => {
       if (n.type === 'rect') {
         const fillHex = toHexInt(n.fill || '#000000')
         const strokeHex = toHexInt(n.stroke || '#000000')
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_fill_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
-  graphics_fill_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), 0, GCornerNone);
+  graphics_fill_rect(ctx, ${mappedRect(n)}, 0, GCornerNone);
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
   graphics_context_set_stroke_width(ctx, ${Math.max(1, n.strokeWidth || 1)});
-  graphics_draw_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));`
+  graphics_draw_rect(ctx, ${mappedRect(n)});`
       }
 
       if (n.type === 'bitmap') {
         const idx = bitmaps.indexOf(n)
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   if (s_bitmaps[${idx}]) {
-    graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));
+    graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], ${mappedRect(n)});
   }`
       }
 
@@ -383,7 +426,7 @@ static GPath *s_gpath_${idx};`
         const idx = imageTimes.indexOf(n)
         const value = imageTimeFormatExpression(n)
         const layout = buildImageTimeLayout(n)
-        const xPositions = layout.positions.map((x) => round(n.x + x)).join(', ')
+        const xPositions = layout.positions.map((x) => `base_x_${idx} + ${round(x)}`).join(', ')
         const formatLabel =
           n.mode === 'time'
             ? n.timeFormat
@@ -391,7 +434,7 @@ static GPath *s_gpath_${idx};`
               ? n.dateFormat
               : n.weekFormat
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   // mode: ${n.mode}, format: ${formatLabel}, strftime: ${value}
   {
     char image_time_value_${idx}[8];
@@ -406,6 +449,8 @@ static GPath *s_gpath_${idx};`
     }` : ''}
     const int char_w_${idx} = ${Math.max(4, round(layout.charWidth))};
     const int char_h_${idx} = ${Math.max(4, round(n.height))};
+    const int base_x_${idx} = ${mappedX(n.x, n.width)};
+    const int base_y_${idx} = ${mappedY(n.y, n.height)};
     ${layout.positions.length > 1 ? `
     const int x_positions_${idx}[${layout.positions.length}] = {
       ${xPositions}
@@ -416,7 +461,7 @@ static GPath *s_gpath_${idx};`
         if (s_image_time_keys_${idx}[j] != glyph_key) continue;
         if (s_image_time_bitmaps_${idx}[j]) {
           graphics_draw_bitmap_in_rect(ctx, s_image_time_bitmaps_${idx}[j],
-                                       GRect(x_positions_${idx}[i], ${round(n.y)}, char_w_${idx}, char_h_${idx}));
+                                       GRect(x_positions_${idx}[i], base_y_${idx}, char_w_${idx}, char_h_${idx}));
         }
         break;
       }
@@ -425,7 +470,7 @@ static GPath *s_gpath_${idx};`
       if (strcmp(image_time_value_${idx}, s_image_time_keys_${idx}[j]) != 0) continue;
       if (s_image_time_bitmaps_${idx}[j]) {
         graphics_draw_bitmap_in_rect(ctx, s_image_time_bitmaps_${idx}[j],
-                                     GRect(${round(n.x)}, ${round(n.y)}, char_w_${idx}, char_h_${idx}));
+                                     GRect(base_x_${idx}, base_y_${idx}, char_w_${idx}, char_h_${idx}));
       }
       break;
     }`}
@@ -436,11 +481,11 @@ static GPath *s_gpath_${idx};`
         const idx = drawableGPaths.indexOf(n)
         const strokeHex = toHexInt(n.stroke || '#ffffff')
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
   graphics_context_set_stroke_width(ctx, ${Math.max(1, Math.round(n.strokeWidth || 1))});
   if (s_gpath_${idx}) {
-    gpath_move_to(s_gpath_${idx}, GPoint(${round(n.x)}, ${round(n.y)}));
+    gpath_move_to(s_gpath_${idx}, GPoint(${mappedX(n.x, n.width)}, ${mappedY(n.y, n.height)}));
     gpath_draw_outline(ctx, s_gpath_${idx});
   }`
       }
@@ -452,10 +497,10 @@ static GPath *s_gpath_${idx};`
           : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
 
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
   graphics_draw_text(ctx, "${escapeText(n.text || '')}", ${fontExpr},
-                     GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);`
+                     ${mappedRect(n)}, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);`
       }
 
       if (n.type === 'time') {
@@ -466,7 +511,7 @@ static GPath *s_gpath_${idx};`
           : `font_for("${escapeText(n.fontFamily || '')}", ${Math.round(n.fontSize || 14)}, ${n.bold ? 'true' : 'false'})`
 
         return `
-  // ${n.name}
+  // ${n.name.replace(/[\r\n]/g, ' ')}
   {
     char time_buffer_${idx}[32];
     time_t now_${idx} = time(NULL);
@@ -474,7 +519,7 @@ static GPath *s_gpath_${idx};`
     strftime(time_buffer_${idx}, sizeof(time_buffer_${idx}), s_time_fmt_${idx}, tick_${idx});
     graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
     graphics_draw_text(ctx, time_buffer_${idx}, ${fontExpr},
-                       GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+                       ${mappedRect(n)}, GTextOverflowModeFill, GTextAlignmentCenter, NULL);
   }`
       }
 
@@ -579,6 +624,25 @@ static int32_t deg_to_trig(int32_t degrees) {
   return (TRIG_MAX_ANGLE * d) / 360;
 }
 
+#define DESIGN_WIDTH ${designWidth}
+#define DESIGN_HEIGHT ${designHeight}
+
+static int map_axis(int position, int size, int source_size, int target_size) {
+  return (((position * 2 + size) * target_size) / (source_size * 2)) - (size / 2);
+}
+
+static int map_x(int x, int width, GRect bounds) {
+  return map_axis(x, width, DESIGN_WIDTH, bounds.size.w);
+}
+
+static int map_y(int y, int height, GRect bounds) {
+  return map_axis(y, height, DESIGN_HEIGHT, bounds.size.h);
+}
+
+static GRect mapped_rect(int x, int y, int width, int height, GRect bounds) {
+  return GRect(map_x(x, width, bounds), map_y(y, height, bounds), width, height);
+}
+
 ${tickUnit ? `
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   layer_mark_dirty(s_root_layer);
@@ -587,8 +651,9 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 ${timeFormats || ''}
 
 static void layer_update_proc(Layer *layer, GContext *ctx) {
+  GRect bounds = layer_get_bounds(layer);
   graphics_context_set_fill_color(ctx, color_hex(0x${backgroundColorHex.toString(16).padStart(6, '0')}));
-  graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 ${drawAllLayers}
 }
 
@@ -659,55 +724,8 @@ const sanitizeFileName = (name: string) =>
     .replace(/[^A-Za-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'image'
 
-const usesSegmentedImageTime = (node: ImageTimeNode) =>
-  !(node.mode === 'date' && node.dateFormat === 'MMM') && !(node.mode === 'week' && node.weekFormat === 'words')
-
-const imageTimeGlyphKeys = (node: ImageTimeNode) => {
-  if (node.mode === 'week') {
-    return node.weekFormat === 'words'
-      ? ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-      : ['A', 'D', 'E', 'F', 'H', 'I', 'M', 'N', 'O', 'R', 'S', 'T', 'U', 'W']
-  }
-  if (node.mode === 'date' && node.dateFormat === 'MMM') {
-    return ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  }
-  return ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-}
-
-const imageTimeFormatExpression = (node: ImageTimeNode) => {
-  if (node.mode === 'date') {
-    if (node.dateFormat === 'MMM') return '%b'
-    if (node.dateFormat === 'DD') return '%d'
-    return '%m'
-  }
-  if (node.mode === 'week') return '%a'
-  return node.timeFormat === '12h' ? '%I%M' : '%H%M'
-}
-
-const needsUppercaseImageTime = (node: ImageTimeNode) => node.mode === 'week' || (node.mode === 'date' && node.dateFormat === 'MMM')
-
-const buildImageTimeLayout = (node: ImageTimeNode) => {
-  const charCount = usesSegmentedImageTime(node)
-    ? node.mode === 'week'
-      ? 3
-      : node.mode === 'date'
-        ? 2
-        : 4
-    : 1
-  const gapCount = Math.max(0, charCount - 1)
-  const totalGap = charCount === 4 ? node.charSpacing * 2 + node.groupSpacing : node.charSpacing * gapCount
-  const charWidth = Math.max(4, (node.width - totalGap) / charCount)
-  const positions: number[] = []
-  let x = 0
-  for (let i = 0; i < charCount; i += 1) {
-    positions.push(x)
-    x += charWidth
-    if (i < charCount - 1) {
-      x += charCount === 4 && i === 1 ? node.groupSpacing : node.charSpacing
-    }
-  }
-  return { charWidth, positions }
-}
+const buildImageTimeLayout = (node: ImageTimeNode) =>
+  buildImageTimePositions(node.width, imageTimeCharCount(node), node.charSpacing, node.groupSpacing)
 
 const escapeCChar = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 const escapeCString = (value: string) => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')

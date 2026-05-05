@@ -1,5 +1,11 @@
+type WorkerEnv = {
+  RUNNER_ORIGIN?: string
+  RUNNER_TOKEN?: string
+  ASSETS: { fetch: (request: Request) => Promise<Response> | Response }
+}
+
 export default {
-  async fetch(request: Request, env: any): Promise<Response> {
+  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(request.url);
 
     // /api/healthz
@@ -43,9 +49,10 @@ export default {
           "Content-Disposition,X-Job-Id,X-Build-Log-Base64,Retry-After"
         );
         return new Response(upstream.body, { status: upstream.status, headers });
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const detail = err instanceof Error ? err.message : String(err)
         return new Response(
-          JSON.stringify({ ok: false, error: "Upstream connection failed", detail: err?.message ?? String(err) }),
+          JSON.stringify({ ok: false, error: "Upstream connection failed", detail }),
           { status: 502, headers: { "Content-Type": "application/json" } }
         );
       }

@@ -22,6 +22,7 @@ import {
   dateParts,
   timeParts,
 } from '../store/scene'
+import { parseGlyphKeyFromFileName } from '../lib/image-time'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -70,37 +71,12 @@ export const PropertiesPanel = () => {
     addCustomFont,
     backgroundColor,
     setBackgroundColor,
-    targetPlatforms,
-    setTargetPlatforms,
-    stage,
     aplitePreview,
     toggleAplite,
   } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const digitInputRef = useRef<HTMLInputElement>(null)
-
-  // Determine primary group based on stage dimensions
-  const isBasalt = stage.width === 144
-  const isEmery = stage.width === 200
-  const isChalk = stage.width === 180
-
-  const handleTogglePlatform = (platform: string, enabled: boolean) => {
-    if (enabled) {
-      setTargetPlatforms([...targetPlatforms, platform])
-    } else {
-      setTargetPlatforms(targetPlatforms.filter((p) => p !== platform))
-    }
-  }
-
-  const handleToggleBasaltGroup = (enabled: boolean) => {
-    const basaltPlatforms = ['aplite', 'basalt', 'diorite', 'flint']
-    if (enabled) {
-      setTargetPlatforms([...new Set([...targetPlatforms, ...basaltPlatforms])])
-    } else {
-      setTargetPlatforms(targetPlatforms.filter((p) => !basaltPlatforms.includes(p)))
-    }
-  }
 
   // Dynamic background based on element color, but kept light
   const bgTint =
@@ -149,14 +125,12 @@ export const PropertiesPanel = () => {
           updateTime('fontFamily', font.name)
           updateTime('customFontId', id)
           updateTime('fontSize', 24)
-          updateTime('fontFilter', 'extended' as any)
+          updateTime('fontFilter', 'extended')
         } else {
-          updateNode(target!.id, {
-            fontFamily: font.name,
-            customFontId: id,
-            fontSize: 24,
-            fontFilter: 'extended',
-          } as any)
+          update('fontFamily', font.name)
+          update('customFontId', id)
+          update('fontSize', 24)
+          update('fontFilter', 'extended')
         }
       }
       return
@@ -195,7 +169,7 @@ export const PropertiesPanel = () => {
           customFontId: id,
           fontSize: 24,
           fontFilter: 'extended',
-        } as any)
+        } as Partial<SceneNode>)
       }
     }
     e.target.value = ''
@@ -296,52 +270,12 @@ export const PropertiesPanel = () => {
           <div className="flex items-center justify-between mb-2">
             <div>
               <div className="text-sm font-semibold text-black">Compatibility</div>
-              <div className="text-xs uppercase text-black/50">PLATFORMS</div>
+              <div className="text-xs uppercase text-black/50">ALL PEBBLE MODELS</div>
             </div>
           </div>
 
-          <div className="space-y-3 px-1">
-            {isChalk && (
-              <p className="text-[10px] text-black/40 italic leading-snug">
-                Round (Chalk) projects are restricted to their own platform due to layout differences.
-              </p>
-            )}
-
-            {isBasalt && (
-              <div className="flex items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  id="compat-emery"
-                  checked={targetPlatforms.includes('emery')}
-                  onChange={(e) => handleTogglePlatform('emery', e.target.checked)}
-                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
-                />
-                <label htmlFor="compat-emery" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
-                  Compatible with <strong className="text-black">Emery (Pebble Time 2)</strong>?
-                  <span className="block text-[9px] text-black/40 mt-0.5">
-                    Canvas remains 144x168. Emery will center or upscale.
-                  </span>
-                </label>
-              </div>
-            )}
-
-            {isEmery && (
-              <div className="flex items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  id="compat-basalt"
-                  checked={targetPlatforms.includes('basalt')}
-                  onChange={(e) => handleToggleBasaltGroup(e.target.checked)}
-                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
-                />
-                <label htmlFor="compat-basalt" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
-                  Compatible with <strong className="text-black">Standard Rect (144x168)</strong>?
-                  <span className="block text-[9px] text-black/40 mt-0.5">
-                    Warning: Design might be cropped on smaller screens.
-                  </span>
-                </label>
-              </div>
-            )}
+          <div className="text-[11px] text-black/60 leading-snug">
+            The selected project size is only the design canvas. Export and preview include all supported Pebble resolutions.
           </div>
         </div>
 
@@ -491,7 +425,7 @@ export const PropertiesPanel = () => {
                 updateNode(target.id, {
                   text: newType,
                   format: timeFormatOptions[newType][0].id,
-                } as any)
+                } as Partial<TimeNode> as Partial<SceneNode>)
               }}
             >
               <option value="time">Time</option>
@@ -582,7 +516,7 @@ export const PropertiesPanel = () => {
                 <select
                   className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
                   value={target.fontFilter || 'standard'}
-                  onChange={(e) => updateTime('fontFilter', e.target.value as any)}
+                  onChange={(e) => updateTime('fontFilter', e.target.value as FontFilter)}
                 >
                   {FONT_FILTERS.map(f => (
                     <option key={f.id} value={f.id}>{f.label}</option>
@@ -770,15 +704,6 @@ function readFileAsDataUrl(file: File) {
   })
 }
 
-function parseGlyphKeyFromFileName(name: string) {
-  const base = name.replace(/\.[^/.]+$/, '').trim().toUpperCase()
-  if (/^[0-9A-Z]$/.test(base)) return base
-  if (/^[A-Z]{3}$/.test(base)) return base
-  const wordMatch = base.match(/(^|[^A-Z])(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|SUN|MON|TUE|WED|THU|FRI|SAT)([^A-Z]|$)/)
-  if (wordMatch?.[2]) return wordMatch[2]
-  const charMatch = base.match(/(^|[^0-9A-Z])([0-9A-Z])([^0-9A-Z]|$)/)
-  return charMatch?.[2] || null
-}
 
 function imageTimeDigitWidth(node: ImageTimeNode) {
   return Math.max(4, (node.width - totalSegmentGap(node)) / Math.max(1, segmentedCharCount(node)))
@@ -867,10 +792,7 @@ function GlyphPreviewLabel({ value }: { value: string }) {
 
   useEffect(() => {
     const element = ref.current
-    if (!element || value.length !== 3) {
-      setStacked(false)
-      return
-    }
+    if (!element || value.length !== 3) return
 
     const update = () => {
       const width = element.clientWidth

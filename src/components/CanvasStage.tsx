@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Layer, Rect, Stage, Text as KonvaText, Image as KonvaImage, Transformer, Line, Circle, Group } from 'react-konva'
 import useImage from 'use-image'
 import Konva from 'konva'
@@ -18,7 +18,14 @@ import {
   pebbleGrayHexFromTone,
   pebbleGrayToneFromHexUnquantized,
 } from '../lib/utils'
-import { useState } from 'react'
+import { imageTimeRenderedValue, buildImageTimePositions } from '../lib/image-time'
+import {
+  PLATFORM_SIZES,
+  mapNodeToStage,
+  sameStageSize,
+  unmapNodePosition,
+  type StageSize,
+} from '../utils/layout'
 
 type BitmapProps = {
   node: SceneNode & { type: 'bitmap' }
@@ -51,16 +58,16 @@ type ImageTimeDigitSpriteProps = {
 }
 
 const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
-  const [processedDataUrl, setProcessedDataUrl] = useState(node.dataUrl)
+  const [processedPreview, setProcessedPreview] = useState<{ source: string; dataUrl: string } | null>(null)
   const displayStroke = aplitePreview ? pebbleBwHexFromHex(node.stroke) : node.stroke
+  const displayDataUrl =
+    aplitePreview && processedPreview?.source === node.dataUrl ? processedPreview.dataUrl : node.dataUrl
 
   useEffect(() => {
-    if (!aplitePreview) {
-      setProcessedDataUrl(node.dataUrl)
-      return
-    }
+    if (!aplitePreview) return
 
     let cancelled = false
+    const sourceDataUrl = node.dataUrl
     const sourceImage = new window.Image()
     sourceImage.onload = () => {
       if (cancelled) return
@@ -71,7 +78,7 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
       canvas.height = h
       const ctx = canvas.getContext('2d')
       if (!ctx) {
-        setProcessedDataUrl(node.dataUrl)
+        setProcessedPreview({ source: sourceDataUrl, dataUrl: sourceDataUrl })
         return
       }
       ctx.drawImage(sourceImage, 0, 0, w, h)
@@ -90,19 +97,19 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
         data[i + 2] = value
       }
       ctx.putImageData(img, 0, 0)
-      setProcessedDataUrl(canvas.toDataURL('image/png'))
+      setProcessedPreview({ source: sourceDataUrl, dataUrl: canvas.toDataURL('image/png') })
     }
     sourceImage.onerror = () => {
       if (cancelled) return
-      setProcessedDataUrl(node.dataUrl)
+      setProcessedPreview({ source: sourceDataUrl, dataUrl: sourceDataUrl })
     }
-    sourceImage.src = node.dataUrl
+    sourceImage.src = sourceDataUrl
     return () => {
       cancelled = true
     }
   }, [node.dataUrl, aplitePreview])
 
-  const [img] = useImage(processedDataUrl)
+  const [img] = useImage(displayDataUrl)
   return (
     <KonvaImage
       ref={(el) => registerRef(node.id, el)}
@@ -154,7 +161,7 @@ const ImageTimeDigitSprite = ({ dataUrl, x, width, height, aplitePreview }: Imag
 
 const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef }: ImageTimeProps) => {
   const rendered = imageTimeRenderedValue(now, node)
-  const positions = rendered.type === 'segmented'
+  const layout = rendered.type === 'segmented'
     ? buildImageTimePositions(node.width, rendered.parts.length, Math.max(0, node.charSpacing), Math.max(0, node.groupSpacing))
     : null
 
@@ -186,8 +193,8 @@ const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDrag
               <ImageTimeDigitSprite
                 key={`${node.id}-${char}-${index}`}
                 dataUrl={asset?.dataUrl}
-                x={positions?.xs[index] || 0}
-                width={positions?.charWidth || node.width}
+                x={layout?.positions[index] || 0}
+                width={layout?.charWidth || node.width}
                 height={node.height}
                 aplitePreview={aplitePreview}
               />
@@ -223,6 +230,9 @@ export const CanvasStage = () => {
     tool,
     aplitePreview,
     stage,
+    previewStage,
+    setPreviewStage,
+    targetPlatforms,
     setTool,
     backgroundColor,
   } = useSceneStore()
@@ -235,6 +245,29 @@ export const CanvasStage = () => {
   const closeThreshold = 8
 
   const scale = 1.8
+  const displayStage = previewStage ?? stage
+  const isPreviewingTarget = !sameStageSize(stage, displayStage)
+
+  const previewOptions = useMemo(() => {
+    const options: { id: string; label: string; size: StageSize | null }[] = [
+      { id: 'design', label: `Design ${stage.width}x${stage.height}`, size: null },
+    ]
+    const seen = new Set([`${stage.width}x${stage.height}`])
+    targetPlatforms.forEach((platform) => {
+      const size = PLATFORM_SIZES[platform]
+      if (!size) return
+      const key = `${size.width}x${size.height}`
+      if (seen.has(key)) return
+      seen.add(key)
+      options.push({ id: key, label: `${platform.toUpperCase()} ${key}`, size })
+    })
+    return options
+  }, [stage, targetPlatforms])
+
+  const previewValue = previewStage ? `${previewStage.width}x${previewStage.height}` : 'design'
+
+  const toDesignPosition = (node: Pick<SceneNode, 'x' | 'y' | 'width' | 'height'>) =>
+    unmapNodePosition(node, stage, displayStage)
 
   const getFillProps = (color: string) => {
     if (!aplitePreview) return { fill: color }
@@ -252,24 +285,35 @@ export const CanvasStage = () => {
     return () => window.clearInterval(t)
   }, [])
 
-  useEffect(() => {
-    if (tool !== 'gpath') {
-      setActiveGPathId(null)
+  const formatTimeNode = useCallback((node: TimeNode) => {
+    if (node.format === 'custom') {
+      if (node.text === 'time') {
+        return timeParts(now, node.customFormat || '')
+      }
+      return dateParts(now, node.customFormat || '')
     }
-  }, [tool])
+    const options = timeFormatOptions[node.text]
+    const fmt = options.find((o) => o.id === node.format) || options[0]
+    return fmt ? fmt.formatter(now) : ''
+  }, [now])
 
-  const syncTextBounds = (id: string) => {
-    const ref = shapeRefs.current[id]
-    if (!ref || !(ref instanceof Konva.Text)) return
-    const rect = ref.getSelfRect()
-    const width = Math.max(4, rect.width)
-    const height = Math.max(4, rect.height)
+  const syncTextBounds = useCallback((id: string) => {
     const node = nodes.find((n) => n.id === id)
-    if (!node) return
+    if (!node || (node.type !== 'text' && node.type !== 'time')) return
+    const text = node.type === 'time' ? formatTimeNode(node) : node.text
+    const measured = new Konva.Text({
+      text,
+      fontFamily: node.fontFamily,
+      fontSize: node.fontSize,
+      padding: 4,
+    })
+    const width = Math.max(4, Math.ceil(measured.getWidth()))
+    const height = Math.max(4, Math.ceil(measured.getHeight()))
+    measured.destroy()
     if (Math.abs(node.width - width) > 0.5 || Math.abs(node.height - height) > 0.5) {
       updateNode(id, { width, height })
     }
-  }
+  }, [formatTimeNode, nodes, updateNode])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -329,7 +373,10 @@ export const CanvasStage = () => {
     handleSelect(id, evt)
 
   const handleDrag = (id: string, evt: Konva.KonvaEventObject<DragEvent>) => {
-    updateNode(id, { x: evt.target.x(), y: evt.target.y() })
+    const node = nodes.find((n) => n.id === id)
+    if (!node) return
+    const position = toDesignPosition({ ...node, x: evt.target.x(), y: evt.target.y() })
+    updateNode(id, position)
   }
 
   const handleTransform = (id: string) => {
@@ -343,11 +390,18 @@ export const CanvasStage = () => {
       const scaledPoints = targetNode.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }))
       const absolutePoints = scaledPoints.map((p) => ({ x: lineNode.x() + p.x, y: lineNode.y() + p.y }))
       const normalized = normalizeGPathPoints(absolutePoints)
+      const position = toDesignPosition({
+        ...targetNode,
+        x: normalized.origin.x,
+        y: normalized.origin.y,
+        width: normalized.width,
+        height: normalized.height,
+      })
       node.scaleX(1)
       node.scaleY(1)
       updateNode(id, {
-        x: normalized.origin.x,
-        y: normalized.origin.y,
+        x: position.x,
+        y: position.y,
         rotation: node.rotation(),
         width: normalized.width,
         height: normalized.height,
@@ -359,11 +413,18 @@ export const CanvasStage = () => {
       const groupNode = node as Konva.Group
       const nextWidth = Math.max(16, targetNode.width * scaleX)
       const nextHeight = Math.max(4, targetNode.height * scaleY)
+      const position = toDesignPosition({
+        ...targetNode,
+        x: groupNode.x(),
+        y: groupNode.y(),
+        width: nextWidth,
+        height: nextHeight,
+      })
       node.scaleX(1)
       node.scaleY(1)
       updateNode(id, {
-        x: groupNode.x(),
-        y: groupNode.y(),
+        x: position.x,
+        y: position.y,
         rotation: groupNode.rotation(),
         width: nextWidth,
         height: nextHeight,
@@ -374,11 +435,14 @@ export const CanvasStage = () => {
     }
     const nextWidth = Math.max(4, node.width() * scaleX)
     const nextHeight = Math.max(4, node.height() * scaleY)
+    const position = targetNode
+      ? toDesignPosition({ ...targetNode, x: node.x(), y: node.y(), width: nextWidth, height: nextHeight })
+      : { x: node.x(), y: node.y() }
     node.scaleX(1)
     node.scaleY(1)
     updateNode(id, {
-      x: node.x(),
-      y: node.y(),
+      x: position.x,
+      y: position.y,
       rotation: node.rotation(),
       width: nextWidth,
       height: nextHeight,
@@ -394,26 +458,29 @@ export const CanvasStage = () => {
     if (!transformer) return
     const selectedNodes = selectedIds
       .map((id) => shapeRefs.current[id])
-      .filter((node) => node && !(node instanceof Konva.Line && (node as any).attrs?.dataType === 'gpath')) as Konva.Node[]
+      .filter((node) => node && !(node instanceof Konva.Line && node.getAttr('dataType') === 'gpath')) as Konva.Node[]
     transformer.nodes(selectedNodes)
     transformer.getLayer()?.batchDraw()
-  }, [selectedIds, nodes])
-
-  useEffect(() => {
-    selectedIds.forEach((id) => syncTextBounds(id))
-  }, [selectedIds, nodes])
+  }, [selectedIds, nodes, displayStage])
 
   useEffect(() => {
     const handleFontLoad = () => {
       stageRef.current?.getLayers().forEach((l) => l.batchDraw())
+      nodes.forEach((node) => {
+        if (node.type === 'text' || node.type === 'time') syncTextBounds(node.id)
+      })
     }
-    // @ts-ignore - document.fonts is widely supported but might be missing in older TS lib
     document.fonts?.addEventListener('loadingdone', handleFontLoad)
     return () => {
-      // @ts-ignore
       document.fonts?.removeEventListener('loadingdone', handleFontLoad)
     }
-  }, [])
+  }, [nodes, syncTextBounds])
+
+  useEffect(() => {
+    nodes.forEach((node) => {
+      if (node.type === 'text' || node.type === 'time') syncTextBounds(node.id)
+    })
+  }, [nodes, now, syncTextBounds])
 
   const onStageMouseDown = (evt: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     const stageEl = stageRef.current
@@ -421,59 +488,91 @@ export const CanvasStage = () => {
     if (!stageEl || !pointer) return
     const normalized = { x: pointer.x / scale, y: pointer.y / scale }
     if (tool === 'gpath') {
+      evt.cancelBubble = true
+      const currentActiveGPathId = activeGPathId || null
       const activeExists =
-        activeGPathId && nodes.some((n) => n.id === activeGPathId && n.type === 'gpath')
-      if (!activeGPathId || !activeExists) {
-        const id = addGPath(normalized)
+        currentActiveGPathId && nodes.some((n) => n.id === currentActiveGPathId && n.type === 'gpath')
+      if (!currentActiveGPathId || !activeExists) {
+        const point = {
+          x: normalized.x * (stage.width / displayStage.width),
+          y: normalized.y * (stage.height / displayStage.height),
+        }
+        const id = addGPath(point)
         setActiveGPathId(id)
       } else {
-        const node = nodes.find((n): n is GPathNode => n.id === activeGPathId && n.type === 'gpath')
+        const node = nodes.find((n): n is GPathNode => n.id === currentActiveGPathId && n.type === 'gpath')
+        const point = {
+          x: normalized.x * (stage.width / displayStage.width),
+          y: normalized.y * (stage.height / displayStage.height),
+        }
         if (node && node.points.length > 1) {
           const first = { x: node.x + node.points[0].x, y: node.y + node.points[0].y }
-          const dist = Math.hypot(normalized.x - first.x, normalized.y - first.y)
+          const dist = Math.hypot(point.x - first.x, point.y - first.y)
           if (dist <= closeThreshold) {
-            appendGPathPoint(activeGPathId, first)
+            appendGPathPoint(currentActiveGPathId, first)
             setTool('select')
             setActiveGPathId(null)
             return
           }
         }
-        appendGPathPoint(activeGPathId, normalized)
+        appendGPathPoint(currentActiveGPathId, point)
       }
       setTool('gpath')
       return
     }
     const isEmpty = evt.target === stageEl || evt.target === backgroundRef.current
     if (!isEmpty) return
-    if (tool === 'rect') addRect(normalized.x - 30, normalized.y - 24)
-    else if (tool === 'text') addText(normalized.x - 40, normalized.y - 12)
-    else if (tool === 'time') addTimeText(normalized.x - 40, normalized.y - 12)
-    else if (tool === 'image-time') addImageTime(normalized.x - 58, normalized.y - 16)
+    if (tool === 'rect') {
+      const position = toDesignPosition({ x: normalized.x - 30, y: normalized.y - 24, width: 64, height: 48 })
+      addRect(position.x, position.y)
+    } else if (tool === 'text') {
+      const position = toDesignPosition({ x: normalized.x - 40, y: normalized.y - 12, width: 120, height: 36 })
+      addText(position.x, position.y)
+    } else if (tool === 'time') {
+      const position = toDesignPosition({ x: normalized.x - 40, y: normalized.y - 12, width: 140, height: 36 })
+      addTimeText(position.x, position.y)
+    } else if (tool === 'image-time') {
+      const position = toDesignPosition({ x: normalized.x - 58, y: normalized.y - 16, width: 116, height: 32 })
+      addImageTime(position.x, position.y)
+    }
     else setSelection([])
   }
 
-  const displayNodes = useMemo(() => nodes, [nodes])
-  const formatTimeNode = (node: TimeNode) => {
-    if (node.format === 'custom') {
-      if (node.text === 'time') {
-        return timeParts(now, node.customFormat || '')
-      }
-      return dateParts(now, node.customFormat || '')
-    }
-    const options = timeFormatOptions[node.text]
-    const fmt = options.find((o) => o.id === node.format) || options[0]
-    return fmt ? fmt.formatter(now) : ''
-  }
+  const displayNodes = useMemo(
+    () => nodes.map((node) => mapNodeToStage(node, stage, displayStage)),
+    [nodes, stage, displayStage],
+  )
+  const showRoundMaskEdge = displayStage.width === displayStage.height && [180, 260].includes(displayStage.width)
+  const roundMaskRadius = Math.max(1, Math.min(displayStage.width, displayStage.height) / 2 - 0.5)
 
   return (
     <div className="relative flex flex-col items-center gap-3">
-      <div className="text-xs uppercase tracking-[0.2em] text-black/70">Canvas {stage.width}×{stage.height}</div>
+      <div className="flex flex-wrap items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] text-black/70">
+        <span>Canvas {displayStage.width}×{displayStage.height}</span>
+        {previewOptions.length > 1 && (
+          <select
+            value={previewValue}
+            onChange={(e) => {
+              const selected = previewOptions.find((option) => option.id === e.target.value)
+              setPreviewStage(selected?.size ?? null)
+            }}
+            className="h-8 border border-black bg-white px-2 text-[11px] tracking-normal uppercase"
+          >
+            {previewOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        )}
+        {isPreviewingTarget && <span className="tracking-normal text-black/50">position preview</span>}
+      </div>
       <div
         className="retro-panel p-3"
       >
         <Stage
-          width={stage.width * scale}
-          height={stage.height * scale}
+          width={displayStage.width * scale}
+          height={displayStage.height * scale}
           scaleX={scale}
           scaleY={scale}
           ref={stageRef}
@@ -485,12 +584,16 @@ export const CanvasStage = () => {
             <Rect
               x={0}
               y={0}
-              width={stage.width}
-              height={stage.height}
+              width={displayStage.width}
+              height={displayStage.height}
               {...getFillProps(backgroundColor)}
               cornerRadius={12}
-              onClick={() => setSelection([])}
-              onTap={() => setSelection([])}
+              onClick={() => {
+                if (tool !== 'gpath') setSelection([])
+              }}
+              onTap={() => {
+                if (tool !== 'gpath') setSelection([])
+              }}
               ref={(el) => {
                 backgroundRef.current = el
               }}
@@ -650,6 +753,17 @@ export const CanvasStage = () => {
                 />
               )
             })}
+            {showRoundMaskEdge && (
+              <Circle
+                x={displayStage.width / 2}
+                y={displayStage.height / 2}
+                radius={roundMaskRadius}
+                stroke="#ff4700"
+                strokeWidth={1}
+                dash={[5, 4]}
+                listening={false}
+              />
+            )}
             <Transformer
               ref={transformerRef}
               rotateEnabled
@@ -666,46 +780,6 @@ export const CanvasStage = () => {
   )
 }
 
-function imageTimeRenderedValue(now: Date, node: ImageTimeNode): { type: 'segmented'; parts: string[] } | { type: 'whole'; key: string } {
-  if (node.mode === 'date') {
-    if (node.dateFormat === 'MMM') {
-      return { type: 'whole', key: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(now).toUpperCase() }
-    }
-    if (node.dateFormat === 'DD') {
-      return { type: 'segmented', parts: String(now.getDate()).padStart(2, '0').split('') }
-    }
-    return { type: 'segmented', parts: String(now.getMonth() + 1).padStart(2, '0').split('') }
-  }
-  if (node.mode === 'week') {
-    const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(now).toUpperCase()
-    if (node.weekFormat === 'words') {
-      return { type: 'whole', key: weekday }
-    }
-    return { type: 'segmented', parts: weekday.split('') }
-  }
-  if (node.timeFormat === '12h') {
-    const hours = now.getHours() % 12 || 12
-    return { type: 'segmented', parts: `${String(hours).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`.split('') }
-  }
-  return { type: 'segmented', parts: `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`.split('') }
-}
-
-function buildImageTimePositions(totalWidth: number, charCount: number, charSpacing: number, groupSpacing: number) {
-  const xs: number[] = []
-  if (charCount <= 0) return { xs, charWidth: Math.max(4, totalWidth) }
-  const gapCount = Math.max(0, charCount - 1)
-  const totalGap = charCount === 4 ? charSpacing * 2 + groupSpacing : charSpacing * gapCount
-  const charWidth = Math.max(4, (totalWidth - totalGap) / charCount)
-  let x = 0
-  for (let i = 0; i < charCount; i += 1) {
-    xs.push(x)
-    x += charWidth
-    if (i < charCount - 1) {
-      x += charCount === 4 && i === 1 ? groupSpacing : charSpacing
-    }
-  }
-  return { xs, charWidth }
-}
 
 function fitBitmapWithinBox(sourceWidth: number, sourceHeight: number, maxWidth: number, maxHeight: number) {
   if (sourceWidth <= 0 || sourceHeight <= 0) {
