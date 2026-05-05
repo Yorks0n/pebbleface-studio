@@ -12,6 +12,7 @@ import {
   type CustomFont,
   type FontFilter,
   type ProjectFile,
+  type ProjectSceneNode,
 } from '../store/scene'
 import { randomUuid } from '../lib/utils'
 import {
@@ -29,6 +30,14 @@ type PebbleResource = {
   file: string
 }
 
+type PebbleFontResource = {
+  type: 'font'
+  name: string
+  file: string
+  compatibility: string
+  characterRegex?: string
+}
+
 const dataUrlToUint8 = async (dataUrl: string) => {
   const res = await fetch(dataUrl)
   const buf = await res.arrayBuffer()
@@ -42,7 +51,7 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
 
   const zip = new JSZip()
   const media: PebbleResource[] = []
-  const fonts: any[] = [] // Pebble font resources
+  const fonts: PebbleFontResource[] = []
 
   const src = zip.folder('src')
   const res = zip.folder('resources')?.folder('images')
@@ -151,6 +160,32 @@ export async function exportPebbleProject(nodes: SceneNode[], projectName: strin
   saveAs(blob, fileName)
 }
 
+const serializeProjectNode = (node: SceneNode): ProjectSceneNode => {
+  if (node.type === 'bitmap') {
+    return {
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      x: node.x,
+      y: node.y,
+      width: node.width,
+      height: node.height,
+      rotation: node.rotation,
+      stroke: node.stroke,
+      strokeWidth: node.strokeWidth,
+      dataUrl: node.dataUrl,
+      fileName: node.fileName,
+    }
+  }
+  if (node.type === 'image-time') {
+    return {
+      ...node,
+      glyphs: node.glyphs.map(({ key, dataUrl, fileName }) => ({ key, dataUrl, fileName })),
+    }
+  }
+  return node
+}
+
 export function saveProjectFile() {
   const store = useSceneStore.getState()
 
@@ -168,21 +203,14 @@ export function saveProjectFile() {
     resources: {
       fonts: store.customFonts.map(({ id, name, dataUrl }) => ({ id, name, dataUrl })),
     },
-    scene: store.nodes.map((node) => {
-      const { ...rest } = node
-      if ('file' in (rest as any)) delete (rest as any).file
-      if (rest.type === 'image-time') {
-        rest.glyphs = rest.glyphs.map(({ file, ...glyph }) => glyph)
-      }
-      return rest as any
-    }),
+    scene: store.nodes.map(serializeProjectNode),
   }
 
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' })
   saveAs(blob, `${store.projectName || 'project'}.pfs`)
 }
 
-const templatePebblePackage = (projectName: string, resources: PebbleResource[], fonts: any[], platforms: string[]) => {
+const templatePebblePackage = (projectName: string, resources: PebbleResource[], fonts: PebbleFontResource[], platforms: string[]) => {
   const store = useSceneStore.getState()
   return {
     name: slugify(projectName),

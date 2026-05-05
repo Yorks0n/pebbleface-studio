@@ -1,4 +1,12 @@
-export async function onRequest(context: any) {
+type BuildContext = {
+  request: Request
+  env: {
+    RUNNER_ORIGIN?: string
+    RUNNER_TOKEN?: string
+  }
+}
+
+export async function onRequest(context: BuildContext) {
     const { request, env } = context;
 
     if (request.method !== "POST") {
@@ -32,12 +40,13 @@ export async function onRequest(context: any) {
         status: upstream.status,
         headers: responseHeaders,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const detail = err instanceof Error ? err.message : String(err)
       return new Response(
         JSON.stringify({
           ok: false,
           error: "Upstream connection failed",
-          detail: err.message,
+          detail,
         }),
         {
           status: 502,

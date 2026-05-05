@@ -85,6 +85,16 @@ export type GPathNode = BaseNode & {
 }
 
 export type SceneNode = RectNode | TextNode | BitmapNode | TimeNode | ImageTimeNode | GPathNode
+type SerializedNode<T> = T extends unknown ? Omit<T, 'file'> : never
+type LegacyImageTimeNode = Omit<SerializedNode<ImageTimeNode>, 'mode' | 'timeFormat' | 'dateFormat' | 'weekFormat' | 'glyphs'> & {
+  mode?: ImageTimeMode
+  timeFormat?: ImageTimeTimeFormat
+  dateFormat?: ImageTimeDateFormat
+  weekFormat?: ImageTimeWeekFormat
+  glyphs?: ImageTimeGlyphAsset[]
+  digits?: { digit: string; dataUrl: string; fileName: string }[]
+}
+export type ProjectSceneNode = Exclude<SerializedNode<SceneNode>, SerializedNode<ImageTimeNode>> | LegacyImageTimeNode
 
 export type TimeFormatId =
   | 'HH:mm'
@@ -122,7 +132,7 @@ export interface ProjectFile {
   resources: {
     fonts: { id: string; name: string; dataUrl: string }[]
   }
-  scene: Omit<SceneNode, 'file'>[]
+  scene: ProjectSceneNode[]
 }
 
 export type SceneState = {

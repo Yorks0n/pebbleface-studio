@@ -75,9 +75,9 @@ function App() {
       })
       
       setBuildStatus('Done')
-    } catch (e: any) {
+    } catch (e: unknown) {
       setBuildStatus('Error')
-      alert(e.message) // Show error (including Retry-After)
+      alert(e instanceof Error ? e.message : String(e)) // Show error (including Retry-After)
       if (buildLog) setShowLog(true) // Show log if available on error
     } finally {
       setIsCompiling(false)

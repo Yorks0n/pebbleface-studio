@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Layer, Rect, Stage, Text as KonvaText, Image as KonvaImage, Transformer, Line, Circle, Group } from 'react-konva'
 import useImage from 'use-image'
 import Konva from 'konva'
@@ -19,7 +19,6 @@ import {
   pebbleGrayToneFromHexUnquantized,
 } from '../lib/utils'
 import { imageTimeRenderedValue, buildImageTimePositions } from '../lib/image-time'
-import { useState } from 'react'
 
 type BitmapProps = {
   node: SceneNode & { type: 'bitmap' }
@@ -52,16 +51,16 @@ type ImageTimeDigitSpriteProps = {
 }
 
 const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: BitmapProps) => {
-  const [processedDataUrl, setProcessedDataUrl] = useState(node.dataUrl)
+  const [processedPreview, setProcessedPreview] = useState<{ source: string; dataUrl: string } | null>(null)
   const displayStroke = aplitePreview ? pebbleBwHexFromHex(node.stroke) : node.stroke
+  const displayDataUrl =
+    aplitePreview && processedPreview?.source === node.dataUrl ? processedPreview.dataUrl : node.dataUrl
 
   useEffect(() => {
-    if (!aplitePreview) {
-      setProcessedDataUrl(node.dataUrl)
-      return
-    }
+    if (!aplitePreview) return
 
     let cancelled = false
+    const sourceDataUrl = node.dataUrl
     const sourceImage = new window.Image()
     sourceImage.onload = () => {
       if (cancelled) return
@@ -72,7 +71,7 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
       canvas.height = h
       const ctx = canvas.getContext('2d')
       if (!ctx) {
-        setProcessedDataUrl(node.dataUrl)
+        setProcessedPreview({ source: sourceDataUrl, dataUrl: sourceDataUrl })
         return
       }
       ctx.drawImage(sourceImage, 0, 0, w, h)
@@ -91,19 +90,19 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
         data[i + 2] = value
       }
       ctx.putImageData(img, 0, 0)
-      setProcessedDataUrl(canvas.toDataURL('image/png'))
+      setProcessedPreview({ source: sourceDataUrl, dataUrl: canvas.toDataURL('image/png') })
     }
     sourceImage.onerror = () => {
       if (cancelled) return
-      setProcessedDataUrl(node.dataUrl)
+      setProcessedPreview({ source: sourceDataUrl, dataUrl: sourceDataUrl })
     }
-    sourceImage.src = node.dataUrl
+    sourceImage.src = sourceDataUrl
     return () => {
       cancelled = true
     }
   }, [node.dataUrl, aplitePreview])
 
-  const [img] = useImage(processedDataUrl)
+  const [img] = useImage(displayDataUrl)
   return (
     <KonvaImage
       ref={(el) => registerRef(node.id, el)}
@@ -253,24 +252,35 @@ export const CanvasStage = () => {
     return () => window.clearInterval(t)
   }, [])
 
-  useEffect(() => {
-    if (tool !== 'gpath') {
-      setActiveGPathId(null)
+  const formatTimeNode = useCallback((node: TimeNode) => {
+    if (node.format === 'custom') {
+      if (node.text === 'time') {
+        return timeParts(now, node.customFormat || '')
+      }
+      return dateParts(now, node.customFormat || '')
     }
-  }, [tool])
+    const options = timeFormatOptions[node.text]
+    const fmt = options.find((o) => o.id === node.format) || options[0]
+    return fmt ? fmt.formatter(now) : ''
+  }, [now])
 
-  const syncTextBounds = (id: string) => {
-    const ref = shapeRefs.current[id]
-    if (!ref || !(ref instanceof Konva.Text)) return
-    const rect = ref.getSelfRect()
-    const width = Math.max(4, rect.width)
-    const height = Math.max(4, rect.height)
+  const syncTextBounds = useCallback((id: string) => {
     const node = nodes.find((n) => n.id === id)
-    if (!node) return
+    if (!node || (node.type !== 'text' && node.type !== 'time')) return
+    const text = node.type === 'time' ? formatTimeNode(node) : node.text
+    const measured = new Konva.Text({
+      text,
+      fontFamily: node.fontFamily,
+      fontSize: node.fontSize,
+      padding: 4,
+    })
+    const width = Math.max(4, Math.ceil(measured.getWidth()))
+    const height = Math.max(4, Math.ceil(measured.getHeight()))
+    measured.destroy()
     if (Math.abs(node.width - width) > 0.5 || Math.abs(node.height - height) > 0.5) {
       updateNode(id, { width, height })
     }
-  }
+  }, [formatTimeNode, nodes, updateNode])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -395,26 +405,29 @@ export const CanvasStage = () => {
     if (!transformer) return
     const selectedNodes = selectedIds
       .map((id) => shapeRefs.current[id])
-      .filter((node) => node && !(node instanceof Konva.Line && (node as any).attrs?.dataType === 'gpath')) as Konva.Node[]
+      .filter((node) => node && !(node instanceof Konva.Line && node.getAttr('dataType') === 'gpath')) as Konva.Node[]
     transformer.nodes(selectedNodes)
     transformer.getLayer()?.batchDraw()
   }, [selectedIds, nodes])
 
   useEffect(() => {
-    selectedIds.forEach((id) => syncTextBounds(id))
-  }, [selectedIds, nodes])
-
-  useEffect(() => {
     const handleFontLoad = () => {
       stageRef.current?.getLayers().forEach((l) => l.batchDraw())
+      nodes.forEach((node) => {
+        if (node.type === 'text' || node.type === 'time') syncTextBounds(node.id)
+      })
     }
-    // @ts-ignore - document.fonts is widely supported but might be missing in older TS lib
     document.fonts?.addEventListener('loadingdone', handleFontLoad)
     return () => {
-      // @ts-ignore
       document.fonts?.removeEventListener('loadingdone', handleFontLoad)
     }
-  }, [])
+  }, [nodes, syncTextBounds])
+
+  useEffect(() => {
+    nodes.forEach((node) => {
+      if (node.type === 'text' || node.type === 'time') syncTextBounds(node.id)
+    })
+  }, [nodes, now, syncTextBounds])
 
   const onStageMouseDown = (evt: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     const stageEl = stageRef.current
@@ -422,24 +435,28 @@ export const CanvasStage = () => {
     if (!stageEl || !pointer) return
     const normalized = { x: pointer.x / scale, y: pointer.y / scale }
     if (tool === 'gpath') {
+      const currentActiveGPathId =
+        activeGPathId && selectedIds.includes(activeGPathId)
+          ? activeGPathId
+          : null
       const activeExists =
-        activeGPathId && nodes.some((n) => n.id === activeGPathId && n.type === 'gpath')
-      if (!activeGPathId || !activeExists) {
+        currentActiveGPathId && nodes.some((n) => n.id === currentActiveGPathId && n.type === 'gpath')
+      if (!currentActiveGPathId || !activeExists) {
         const id = addGPath(normalized)
         setActiveGPathId(id)
       } else {
-        const node = nodes.find((n): n is GPathNode => n.id === activeGPathId && n.type === 'gpath')
+        const node = nodes.find((n): n is GPathNode => n.id === currentActiveGPathId && n.type === 'gpath')
         if (node && node.points.length > 1) {
           const first = { x: node.x + node.points[0].x, y: node.y + node.points[0].y }
           const dist = Math.hypot(normalized.x - first.x, normalized.y - first.y)
           if (dist <= closeThreshold) {
-            appendGPathPoint(activeGPathId, first)
+            appendGPathPoint(currentActiveGPathId, first)
             setTool('select')
             setActiveGPathId(null)
             return
           }
         }
-        appendGPathPoint(activeGPathId, normalized)
+        appendGPathPoint(currentActiveGPathId, normalized)
       }
       setTool('gpath')
       return
@@ -454,17 +471,6 @@ export const CanvasStage = () => {
   }
 
   const displayNodes = useMemo(() => nodes, [nodes])
-  const formatTimeNode = (node: TimeNode) => {
-    if (node.format === 'custom') {
-      if (node.text === 'time') {
-        return timeParts(now, node.customFormat || '')
-      }
-      return dateParts(now, node.customFormat || '')
-    }
-    const options = timeFormatOptions[node.text]
-    const fmt = options.find((o) => o.id === node.format) || options[0]
-    return fmt ? fmt.formatter(now) : ''
-  }
 
   return (
     <div className="relative flex flex-col items-center gap-3">

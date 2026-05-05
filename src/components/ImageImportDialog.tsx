@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Stage, Layer, Image as KonvaImage, Rect, Path } from 'react-konva'
 import useImage from 'use-image'
 import Konva from 'konva'
@@ -23,7 +23,7 @@ const PRESETS = [
 ]
 
 export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImportDialogProps) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const imageUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
   const [image] = useImage(imageUrl || '', 'anonymous')
   
   // Target output size (The fixed viewport)
@@ -40,23 +40,10 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
   const overlayLayerRef = useRef<Konva.Layer>(null)
 
   useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file)
-      setImageUrl(url)
-      // Reset image state when new file loads
-      setImgState({ x: 0, y: 0, scale: 1 })
-      return () => URL.revokeObjectURL(url)
+    return () => {
+      if (imageUrl) URL.revokeObjectURL(imageUrl)
     }
-  }, [file])
-
-  useEffect(() => {
-    if (image) {
-      // Fit image into target size initially? Or just center it at 100%?
-      // Let's center it.
-      // Reset is handled in file effect, but if image object loads later:
-      setImgState(prev => ({ ...prev, x: 0, y: 0 }))
-    }
-  }, [image])
+  }, [imageUrl])
 
   // Handle resizing the stage based on container
   useEffect(() => {
@@ -120,7 +107,7 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
     setTargetSize({ width: w, height: h })
   }
 
-  const handleWheel = (e: any) => {
+  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault()
     const scaleBy = 1.05
     const oldScale = imgState.scale

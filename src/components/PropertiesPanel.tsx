@@ -150,14 +150,12 @@ export const PropertiesPanel = () => {
           updateTime('fontFamily', font.name)
           updateTime('customFontId', id)
           updateTime('fontSize', 24)
-          updateTime('fontFilter', 'extended' as any)
+          updateTime('fontFilter', 'extended')
         } else {
-          updateNode(target!.id, {
-            fontFamily: font.name,
-            customFontId: id,
-            fontSize: 24,
-            fontFilter: 'extended',
-          } as any)
+          update('fontFamily', font.name)
+          update('customFontId', id)
+          update('fontSize', 24)
+          update('fontFilter', 'extended')
         }
       }
       return
@@ -196,7 +194,7 @@ export const PropertiesPanel = () => {
           customFontId: id,
           fontSize: 24,
           fontFilter: 'extended',
-        } as any)
+        } as Partial<SceneNode>)
       }
     }
     e.target.value = ''
@@ -522,7 +520,7 @@ export const PropertiesPanel = () => {
                 updateNode(target.id, {
                   text: newType,
                   format: timeFormatOptions[newType][0].id,
-                } as any)
+                } as Partial<TimeNode> as Partial<SceneNode>)
               }}
             >
               <option value="time">Time</option>
@@ -608,7 +606,7 @@ export const PropertiesPanel = () => {
                 <select
                   className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
                   value={target.fontFilter || 'standard'}
-                  onChange={(e) => updateTime('fontFilter', e.target.value as any)}
+                  onChange={(e) => updateTime('fontFilter', e.target.value as FontFilter)}
                 >
                   {FONT_FILTERS.map(f => (
                     <option key={f.id} value={f.id}>{f.label}</option>
@@ -884,10 +882,7 @@ function GlyphPreviewLabel({ value }: { value: string }) {
 
   useEffect(() => {
     const element = ref.current
-    if (!element || value.length !== 3) {
-      setStacked(false)
-      return
-    }
+    if (!element || value.length !== 3) return
 
     const update = () => {
       const width = element.clientWidth

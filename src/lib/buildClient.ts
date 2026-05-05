@@ -5,7 +5,7 @@ export function decodeBase64ToText(b64: string) {
 
 export function filenameFromContentDisposition(cd: string | null) {
   if (!cd) return "watchface.pbw";
-  const m = cd.match(/filename="([^\"]+)"/i);
+  const m = cd.match(/filename="([^"]+)"/i);
   return m?.[1] ?? "watchface.pbw";
 }
 

@@ -1,11 +1,35 @@
 import { useRef, useState } from 'react'
-import { Clock3, Images, Image as ImageIcon, PenTool, Square, Type } from 'lucide-react'
+import {
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  Clock3,
+  Crosshair,
+  Images,
+  Image as ImageIcon,
+  PenTool,
+  Square,
+  Type,
+} from 'lucide-react'
 import { useSceneStore } from '../store/scene'
 import { Button } from './ui/button'
 import { ImageImportDialog } from './ImageImportDialog'
 
+type CenterAxis = 'horizontal' | 'vertical' | 'both'
+
 export const Toolbar = () => {
-  const { addRect, addText, addTimeText, addImageTime, stage, setTool, tool, setSelection } = useSceneStore()
+  const {
+    addRect,
+    addText,
+    addTimeText,
+    addImageTime,
+    nodes,
+    selectedIds,
+    stage,
+    setTool,
+    tool,
+    setSelection,
+    updateNode,
+  } = useSceneStore()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const addBitmap = useSceneStore((s) => s.addBitmap)
 
@@ -44,6 +68,27 @@ export const Toolbar = () => {
   const enableGPathTool = () => {
     setSelection([])
     setTool(tool === 'gpath' ? 'select' : 'gpath')
+  }
+
+  const selectedNodes = nodes.filter((node) => selectedIds.includes(node.id))
+  const hasSelection = selectedNodes.length > 0
+
+  const centerSelection = (axis: CenterAxis) => {
+    if (!hasSelection) return
+
+    const minX = Math.min(...selectedNodes.map((node) => node.x))
+    const minY = Math.min(...selectedNodes.map((node) => node.y))
+    const maxX = Math.max(...selectedNodes.map((node) => node.x + node.width))
+    const maxY = Math.max(...selectedNodes.map((node) => node.y + node.height))
+    const dx = axis === 'vertical' ? 0 : Math.round((stage.width - (maxX - minX)) / 2 - minX)
+    const dy = axis === 'horizontal' ? 0 : Math.round((stage.height - (maxY - minY)) / 2 - minY)
+
+    selectedNodes.forEach((node) => {
+      updateNode(node.id, {
+        x: node.x + dx,
+        y: node.y + dy,
+      })
+    })
   }
 
   return (
@@ -85,6 +130,45 @@ export const Toolbar = () => {
           GPath
         </Button>
       </div>
+      <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-black">
+        Center
+        <span className="text-[11px] uppercase text-black/60">Selected</span>
+      </div>
+      <div className="retro-panel p-3 flex flex-wrap items-center gap-2">
+        <Button
+          variant="subtle"
+          onClick={() => centerSelection('horizontal')}
+          size="lg"
+          className="justify-start"
+          disabled={!hasSelection}
+          title="Center selected layers horizontally on the canvas"
+        >
+          <AlignCenterVertical size={16} />
+          Horizontal
+        </Button>
+        <Button
+          variant="subtle"
+          onClick={() => centerSelection('vertical')}
+          size="lg"
+          className="justify-start"
+          disabled={!hasSelection}
+          title="Center selected layers vertically on the canvas"
+        >
+          <AlignCenterHorizontal size={16} />
+          Vertical
+        </Button>
+        <Button
+          variant="subtle"
+          onClick={() => centerSelection('both')}
+          size="lg"
+          className="justify-start"
+          disabled={!hasSelection}
+          title="Center selected layers both horizontally and vertically"
+        >
+          <Crosshair size={16} />
+          Both
+        </Button>
+      </div>
       <input
         ref={fileInputRef}
         type="file"
@@ -99,6 +183,7 @@ export const Toolbar = () => {
       />
       
       <ImageImportDialog 
+        key={importFile ? `${importFile.name}-${importFile.lastModified}` : 'closed'}
         isOpen={!!importFile} 
         file={importFile} 
         onClose={() => setImportFile(null)} 
