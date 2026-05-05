@@ -542,6 +542,8 @@ export const CanvasStage = () => {
     () => nodes.map((node) => mapNodeToStage(node, stage, displayStage)),
     [nodes, stage, displayStage],
   )
+  const showRoundMaskEdge = displayStage.width === displayStage.height && [180, 260].includes(displayStage.width)
+  const roundMaskRadius = Math.max(1, Math.min(displayStage.width, displayStage.height) / 2 - 0.5)
 
   return (
     <div className="relative flex flex-col items-center gap-3">
@@ -751,6 +753,17 @@ export const CanvasStage = () => {
                 />
               )
             })}
+            {showRoundMaskEdge && (
+              <Circle
+                x={displayStage.width / 2}
+                y={displayStage.height / 2}
+                radius={roundMaskRadius}
+                stroke="#ff4700"
+                strokeWidth={1}
+                dash={[5, 4]}
+                listening={false}
+              />
+            )}
             <Transformer
               ref={transformerRef}
               rotateEnabled
