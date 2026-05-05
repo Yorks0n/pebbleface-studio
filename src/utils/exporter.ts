@@ -287,6 +287,8 @@ const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 const templateMainC = (nodes: SceneNode[], customFonts: CustomFont[]) => {
   const store = useSceneStore.getState()
   const backgroundColorHex = toHexInt(store.backgroundColor || '#000000')
+  const designWidth = Math.max(1, Math.round(store.stage.width || 144))
+  const designHeight = Math.max(1, Math.round(store.stage.height || 168))
   const texts = nodes.filter((n) => n.type === 'text')
   const times = nodes.filter((n) => n.type === 'time') as TimeNode[]
   const bitmaps = nodes.filter((n) => n.type === 'bitmap') as BitmapNode[]
@@ -392,6 +394,11 @@ static GPath *s_gpath_${idx};`
 
   const drawableGPaths = gpaths.filter((n) => n.points.length > 1)
 
+  const mappedRect = (n: Pick<SceneNode, 'x' | 'y' | 'width' | 'height'>) =>
+    `mapped_rect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}, bounds)`
+  const mappedX = (x: number, width: number) => `map_x(${round(x)}, ${round(width)}, bounds)`
+  const mappedY = (y: number, height: number) => `map_y(${round(y)}, ${round(height)}, bounds)`
+
   const drawAllLayers = nodes
     .map((n) => {
       if (n.type === 'rect') {
@@ -400,10 +407,10 @@ static GPath *s_gpath_${idx};`
         return `
   // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_fill_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
-  graphics_fill_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), 0, GCornerNone);
+  graphics_fill_rect(ctx, ${mappedRect(n)}, 0, GCornerNone);
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
   graphics_context_set_stroke_width(ctx, ${Math.max(1, n.strokeWidth || 1)});
-  graphics_draw_rect(ctx, GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));`
+  graphics_draw_rect(ctx, ${mappedRect(n)});`
       }
 
       if (n.type === 'bitmap') {
@@ -411,7 +418,7 @@ static GPath *s_gpath_${idx};`
         return `
   // ${n.name.replace(/[\r\n]/g, ' ')}
   if (s_bitmaps[${idx}]) {
-    graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}));
+    graphics_draw_bitmap_in_rect(ctx, s_bitmaps[${idx}], ${mappedRect(n)});
   }`
       }
 
@@ -419,7 +426,7 @@ static GPath *s_gpath_${idx};`
         const idx = imageTimes.indexOf(n)
         const value = imageTimeFormatExpression(n)
         const layout = buildImageTimeLayout(n)
-        const xPositions = layout.positions.map((x) => round(n.x + x)).join(', ')
+        const xPositions = layout.positions.map((x) => `base_x_${idx} + ${round(x)}`).join(', ')
         const formatLabel =
           n.mode === 'time'
             ? n.timeFormat
@@ -442,6 +449,8 @@ static GPath *s_gpath_${idx};`
     }` : ''}
     const int char_w_${idx} = ${Math.max(4, round(layout.charWidth))};
     const int char_h_${idx} = ${Math.max(4, round(n.height))};
+    const int base_x_${idx} = ${mappedX(n.x, n.width)};
+    const int base_y_${idx} = ${mappedY(n.y, n.height)};
     ${layout.positions.length > 1 ? `
     const int x_positions_${idx}[${layout.positions.length}] = {
       ${xPositions}
@@ -452,7 +461,7 @@ static GPath *s_gpath_${idx};`
         if (s_image_time_keys_${idx}[j] != glyph_key) continue;
         if (s_image_time_bitmaps_${idx}[j]) {
           graphics_draw_bitmap_in_rect(ctx, s_image_time_bitmaps_${idx}[j],
-                                       GRect(x_positions_${idx}[i], ${round(n.y)}, char_w_${idx}, char_h_${idx}));
+                                       GRect(x_positions_${idx}[i], base_y_${idx}, char_w_${idx}, char_h_${idx}));
         }
         break;
       }
@@ -461,7 +470,7 @@ static GPath *s_gpath_${idx};`
       if (strcmp(image_time_value_${idx}, s_image_time_keys_${idx}[j]) != 0) continue;
       if (s_image_time_bitmaps_${idx}[j]) {
         graphics_draw_bitmap_in_rect(ctx, s_image_time_bitmaps_${idx}[j],
-                                     GRect(${round(n.x)}, ${round(n.y)}, char_w_${idx}, char_h_${idx}));
+                                     GRect(base_x_${idx}, base_y_${idx}, char_w_${idx}, char_h_${idx}));
       }
       break;
     }`}
@@ -476,7 +485,7 @@ static GPath *s_gpath_${idx};`
   graphics_context_set_stroke_color(ctx, color_hex(0x${strokeHex.toString(16).padStart(6, '0')}));
   graphics_context_set_stroke_width(ctx, ${Math.max(1, Math.round(n.strokeWidth || 1))});
   if (s_gpath_${idx}) {
-    gpath_move_to(s_gpath_${idx}, GPoint(${round(n.x)}, ${round(n.y)}));
+    gpath_move_to(s_gpath_${idx}, GPoint(${mappedX(n.x, n.width)}, ${mappedY(n.y, n.height)}));
     gpath_draw_outline(ctx, s_gpath_${idx});
   }`
       }
@@ -491,7 +500,7 @@ static GPath *s_gpath_${idx};`
   // ${n.name.replace(/[\r\n]/g, ' ')}
   graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
   graphics_draw_text(ctx, "${escapeText(n.text || '')}", ${fontExpr},
-                     GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);`
+                     ${mappedRect(n)}, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);`
       }
 
       if (n.type === 'time') {
@@ -510,7 +519,7 @@ static GPath *s_gpath_${idx};`
     strftime(time_buffer_${idx}, sizeof(time_buffer_${idx}), s_time_fmt_${idx}, tick_${idx});
     graphics_context_set_text_color(ctx, color_hex(0x${fillHex.toString(16).padStart(6, '0')}));
     graphics_draw_text(ctx, time_buffer_${idx}, ${fontExpr},
-                       GRect(${round(n.x)}, ${round(n.y)}, ${round(n.width)}, ${round(n.height)}), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+                       ${mappedRect(n)}, GTextOverflowModeFill, GTextAlignmentCenter, NULL);
   }`
       }
 
@@ -615,6 +624,25 @@ static int32_t deg_to_trig(int32_t degrees) {
   return (TRIG_MAX_ANGLE * d) / 360;
 }
 
+#define DESIGN_WIDTH ${designWidth}
+#define DESIGN_HEIGHT ${designHeight}
+
+static int map_axis(int position, int size, int source_size, int target_size) {
+  return (((position * 2 + size) * target_size) / (source_size * 2)) - (size / 2);
+}
+
+static int map_x(int x, int width, GRect bounds) {
+  return map_axis(x, width, DESIGN_WIDTH, bounds.size.w);
+}
+
+static int map_y(int y, int height, GRect bounds) {
+  return map_axis(y, height, DESIGN_HEIGHT, bounds.size.h);
+}
+
+static GRect mapped_rect(int x, int y, int width, int height, GRect bounds) {
+  return GRect(map_x(x, width, bounds), map_y(y, height, bounds), width, height);
+}
+
 ${tickUnit ? `
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   layer_mark_dirty(s_root_layer);
@@ -623,8 +651,9 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 ${timeFormats || ''}
 
 static void layer_update_proc(Layer *layer, GContext *ctx) {
+  GRect bounds = layer_get_bounds(layer);
   graphics_context_set_fill_color(ctx, color_hex(0x${backgroundColorHex.toString(16).padStart(6, '0')}));
-  graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 ${drawAllLayers}
 }
 

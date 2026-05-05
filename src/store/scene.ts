@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { apliteColor, uid, randomUuid } from '../lib/utils'
 import { defaultFill, defaultStroke } from '../lib/color-dict'
+import { ALL_TARGET_PLATFORMS } from '../utils/layout'
 
 export type Tool = 'select' | 'rect' | 'text' | 'image' | 'time' | 'image-time' | 'gpath'
 
@@ -142,6 +143,7 @@ export type SceneState = {
   tool: Tool
   aplitePreview: boolean
   stage: { width: number; height: number }
+  previewStage: { width: number; height: number } | null
   isInitialized: boolean
   projectName: string
   projectUuid: string
@@ -150,6 +152,7 @@ export type SceneState = {
   setProjectSettings: (width: number, height: number, platforms: string[], name: string) => void
   setProjectName: (name: string) => void
   setTargetPlatforms: (platforms: string[]) => void
+  setPreviewStage: (stage: { width: number; height: number } | null) => void
   setBackgroundColor: (color: string) => void
   setTool: (tool: Tool) => void
   toggleAplite: () => void
@@ -255,15 +258,17 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   tool: 'select',
   aplitePreview: false,
   stage: { width: 144, height: 168 },
+  previewStage: null,
   isInitialized: false,
   projectName: '',
   projectUuid: '',
   backgroundColor: '#000000',
-  targetPlatforms: ['aplite', 'basalt'],
+  targetPlatforms: ALL_TARGET_PLATFORMS,
   setProjectSettings: (width, height, platforms, name) =>
     set({
       stage: { width, height },
-      targetPlatforms: platforms,
+      previewStage: null,
+      targetPlatforms: platforms.length > 0 ? platforms : ALL_TARGET_PLATFORMS,
       projectName: name || 'pebble-watchface',
       projectUuid: randomUuid(),
       backgroundColor: '#000000',
@@ -272,6 +277,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     }),
   setProjectName: (name) => set({ projectName: name }),
   setTargetPlatforms: (platforms) => set({ targetPlatforms: platforms }),
+  setPreviewStage: (previewStage) => set({ previewStage }),
   setBackgroundColor: (color) => set({ backgroundColor: color }),
   setTool: (tool) => set({ tool }),
   toggleAplite: () => set((state) => ({ aplitePreview: !state.aplitePreview })),
@@ -451,8 +457,9 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     set({
       projectName: file.meta.name,
       projectUuid: file.meta.uuid,
-      targetPlatforms: file.meta.targetPlatforms,
+      targetPlatforms: ALL_TARGET_PLATFORMS,
       stage: file.meta.dimensions,
+      previewStage: null,
       backgroundColor: file.meta.backgroundColor,
       customFonts: file.resources.fonts.map(f => ({ ...f, file: null })),
       nodes: file.scene.map((n) => {

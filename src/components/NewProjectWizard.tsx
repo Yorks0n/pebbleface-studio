@@ -4,13 +4,13 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { useSceneStore, type ProjectFile } from '../store/scene'
+import { ALL_TARGET_PLATFORMS } from '../utils/layout'
 
 const PLATFORM_GROUPS = {
   basalt: {
     id: 'basalt',
     label: 'Standard Rect',
     desc: '144 x 168 (Aplite, Basalt, Diorite, Flint)',
-    platforms: ['aplite', 'basalt', 'diorite', 'flint'],
     w: 144,
     h: 168,
   },
@@ -18,7 +18,6 @@ const PLATFORM_GROUPS = {
     id: 'chalk',
     label: 'Round (Chalk)',
     desc: '180 x 180 (Pebble Time Round)',
-    platforms: ['chalk'],
     w: 180,
     h: 180,
   },
@@ -26,7 +25,6 @@ const PLATFORM_GROUPS = {
     id: 'gabbro',
     label: 'Round 2 (Gabbro)',
     desc: '260 x 260 (Pebble Round 2)',
-    platforms: ['gabbro'],
     w: 260,
     h: 260,
   },
@@ -34,7 +32,6 @@ const PLATFORM_GROUPS = {
     id: 'emery',
     label: 'Large Rect (Emery)',
     desc: '200 x 228 (Pebble Time 2)',
-    platforms: ['emery'],
     w: 200,
     h: 228,
   },
@@ -44,30 +41,13 @@ export const NewProjectWizard = () => {
   const { isInitialized, setProjectSettings, loadProject } = useSceneStore()
   const [projectName, setProjectName] = useState('My Watchface')
   const [selectedSize, setSelectedSize] = useState<keyof typeof PLATFORM_GROUPS>('basalt')
-  const [addEmery, setAddEmery] = useState(false) // When Basalt is selected
-  const [addBasalt, setAddBasalt] = useState(false) // When Emery is selected
-  const [addChalk, setAddChalk] = useState(false) // When Gabbro is selected
-  const [addGabbro, setAddGabbro] = useState(false) // When Chalk is selected
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (isInitialized) return null
 
   const handleCreate = () => {
     const primary = PLATFORM_GROUPS[selectedSize]
-    let platforms = [...primary.platforms]
-    
-    // Logic for compatibility
-    if (selectedSize === 'basalt' && addEmery) {
-      platforms.push('emery')
-    } else if (selectedSize === 'emery' && addBasalt) {
-      platforms = [...platforms, ...PLATFORM_GROUPS.basalt.platforms]
-    } else if (selectedSize === 'gabbro' && addChalk) {
-      platforms.push('chalk')
-    } else if (selectedSize === 'chalk' && addGabbro) {
-      platforms.push('gabbro')
-    }
-
-    setProjectSettings(primary.w, primary.h, platforms, projectName)
+    setProjectSettings(primary.w, primary.h, ALL_TARGET_PLATFORMS, projectName)
   }
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,13 +110,7 @@ export const NewProjectWizard = () => {
             return (
               <button
                 key={key}
-                onClick={() => {
-                  setSelectedSize(key)
-                  setAddEmery(false)
-                  setAddBasalt(false)
-                  setAddChalk(false)
-                  setAddGabbro(false)
-                }}
+                onClick={() => setSelectedSize(key)}
                 className={`relative flex flex-col items-center justify-center gap-3 p-6 border-2 transition-all ${
                   isSelected
                     ? 'border-black bg-black text-white'
@@ -168,85 +142,6 @@ export const NewProjectWizard = () => {
               </button>
             )
           })}
-        </div>
-
-        {/* 2. Compatibility Options */}
-        <div className="mb-8 p-4 bg-[#f0f0f0] border border-[#ccc] min-h-[80px]">
-          <h3 className="text-sm font-semibold text-black/80 mb-3 uppercase tracking-wider">
-            Compatibility
-          </h3>
-          
-          {selectedSize === 'chalk' && (
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="add-gabbro"
-                checked={addGabbro}
-                onChange={(e) => setAddGabbro(e.target.checked)}
-                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
-              />
-              <label htmlFor="add-gabbro" className="text-sm text-black/70 cursor-pointer select-none">
-                Also compatible with <strong className="text-black">Round 2 (Gabbro)</strong>?
-                <span className="block text-xs text-black/40 mt-0.5">
-                  Canvas will remain 180x180. Gabbro will use the same layout on a larger round display.
-                </span>
-              </label>
-            </div>
-          )}
-
-          {selectedSize === 'basalt' && (
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="add-emery"
-                checked={addEmery}
-                onChange={(e) => setAddEmery(e.target.checked)}
-                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
-              />
-              <label htmlFor="add-emery" className="text-sm text-black/70 cursor-pointer select-none">
-                Also compatible with <strong className="text-black">Emery (Pebble Time 2)</strong>?
-                <span className="block text-xs text-black/40 mt-0.5">
-                  Canvas will remain 144x168. Emery will center the face or upscale.
-                </span>
-              </label>
-            </div>
-          )}
-
-          {selectedSize === 'gabbro' && (
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="add-chalk"
-                checked={addChalk}
-                onChange={(e) => setAddChalk(e.target.checked)}
-                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
-              />
-              <label htmlFor="add-chalk" className="text-sm text-black/70 cursor-pointer select-none">
-                Also compatible with <strong className="text-black">Round (Chalk)</strong>?
-                <span className="block text-xs text-black/40 mt-0.5">
-                  Warning: a 260x260 design might be cropped on Chalk's 180x180 screen.
-                </span>
-              </label>
-            </div>
-          )}
-
-          {selectedSize === 'emery' && (
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="add-basalt"
-                checked={addBasalt}
-                onChange={(e) => setAddBasalt(e.target.checked)}
-                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
-              />
-              <label htmlFor="add-basalt" className="text-sm text-black/70 cursor-pointer select-none">
-                Also compatible with <strong className="text-black">Standard Rect (144x168)</strong>?
-                <span className="block text-xs text-black/40 mt-0.5">
-                  Warning: Design might be cropped on smaller screens.
-                </span>
-              </label>
-            </div>
-          )}
         </div>
 
         <Button onClick={handleCreate} size="lg" className="w-full h-12 text-lg rounded-none border-2 border-black bg-black text-white hover:bg-white hover:text-black hover:border-black">

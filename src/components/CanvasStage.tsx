@@ -19,6 +19,13 @@ import {
   pebbleGrayToneFromHexUnquantized,
 } from '../lib/utils'
 import { imageTimeRenderedValue, buildImageTimePositions } from '../lib/image-time'
+import {
+  PLATFORM_SIZES,
+  mapNodeToStage,
+  sameStageSize,
+  unmapNodePosition,
+  type StageSize,
+} from '../utils/layout'
 
 type BitmapProps = {
   node: SceneNode & { type: 'bitmap' }
@@ -223,6 +230,9 @@ export const CanvasStage = () => {
     tool,
     aplitePreview,
     stage,
+    previewStage,
+    setPreviewStage,
+    targetPlatforms,
     setTool,
     backgroundColor,
   } = useSceneStore()
@@ -235,6 +245,29 @@ export const CanvasStage = () => {
   const closeThreshold = 8
 
   const scale = 1.8
+  const displayStage = previewStage ?? stage
+  const isPreviewingTarget = !sameStageSize(stage, displayStage)
+
+  const previewOptions = useMemo(() => {
+    const options: { id: string; label: string; size: StageSize | null }[] = [
+      { id: 'design', label: `Design ${stage.width}x${stage.height}`, size: null },
+    ]
+    const seen = new Set([`${stage.width}x${stage.height}`])
+    targetPlatforms.forEach((platform) => {
+      const size = PLATFORM_SIZES[platform]
+      if (!size) return
+      const key = `${size.width}x${size.height}`
+      if (seen.has(key)) return
+      seen.add(key)
+      options.push({ id: key, label: `${platform.toUpperCase()} ${key}`, size })
+    })
+    return options
+  }, [stage, targetPlatforms])
+
+  const previewValue = previewStage ? `${previewStage.width}x${previewStage.height}` : 'design'
+
+  const toDesignPosition = (node: Pick<SceneNode, 'x' | 'y' | 'width' | 'height'>) =>
+    unmapNodePosition(node, stage, displayStage)
 
   const getFillProps = (color: string) => {
     if (!aplitePreview) return { fill: color }
@@ -340,7 +373,10 @@ export const CanvasStage = () => {
     handleSelect(id, evt)
 
   const handleDrag = (id: string, evt: Konva.KonvaEventObject<DragEvent>) => {
-    updateNode(id, { x: evt.target.x(), y: evt.target.y() })
+    const node = nodes.find((n) => n.id === id)
+    if (!node) return
+    const position = toDesignPosition({ ...node, x: evt.target.x(), y: evt.target.y() })
+    updateNode(id, position)
   }
 
   const handleTransform = (id: string) => {
@@ -354,11 +390,18 @@ export const CanvasStage = () => {
       const scaledPoints = targetNode.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }))
       const absolutePoints = scaledPoints.map((p) => ({ x: lineNode.x() + p.x, y: lineNode.y() + p.y }))
       const normalized = normalizeGPathPoints(absolutePoints)
+      const position = toDesignPosition({
+        ...targetNode,
+        x: normalized.origin.x,
+        y: normalized.origin.y,
+        width: normalized.width,
+        height: normalized.height,
+      })
       node.scaleX(1)
       node.scaleY(1)
       updateNode(id, {
-        x: normalized.origin.x,
-        y: normalized.origin.y,
+        x: position.x,
+        y: position.y,
         rotation: node.rotation(),
         width: normalized.width,
         height: normalized.height,
@@ -370,11 +413,18 @@ export const CanvasStage = () => {
       const groupNode = node as Konva.Group
       const nextWidth = Math.max(16, targetNode.width * scaleX)
       const nextHeight = Math.max(4, targetNode.height * scaleY)
+      const position = toDesignPosition({
+        ...targetNode,
+        x: groupNode.x(),
+        y: groupNode.y(),
+        width: nextWidth,
+        height: nextHeight,
+      })
       node.scaleX(1)
       node.scaleY(1)
       updateNode(id, {
-        x: groupNode.x(),
-        y: groupNode.y(),
+        x: position.x,
+        y: position.y,
         rotation: groupNode.rotation(),
         width: nextWidth,
         height: nextHeight,
@@ -385,11 +435,14 @@ export const CanvasStage = () => {
     }
     const nextWidth = Math.max(4, node.width() * scaleX)
     const nextHeight = Math.max(4, node.height() * scaleY)
+    const position = targetNode
+      ? toDesignPosition({ ...targetNode, x: node.x(), y: node.y(), width: nextWidth, height: nextHeight })
+      : { x: node.x(), y: node.y() }
     node.scaleX(1)
     node.scaleY(1)
     updateNode(id, {
-      x: node.x(),
-      y: node.y(),
+      x: position.x,
+      y: position.y,
       rotation: node.rotation(),
       width: nextWidth,
       height: nextHeight,
@@ -408,7 +461,7 @@ export const CanvasStage = () => {
       .filter((node) => node && !(node instanceof Konva.Line && node.getAttr('dataType') === 'gpath')) as Konva.Node[]
     transformer.nodes(selectedNodes)
     transformer.getLayer()?.batchDraw()
-  }, [selectedIds, nodes])
+  }, [selectedIds, nodes, displayStage])
 
   useEffect(() => {
     const handleFontLoad = () => {
@@ -435,20 +488,26 @@ export const CanvasStage = () => {
     if (!stageEl || !pointer) return
     const normalized = { x: pointer.x / scale, y: pointer.y / scale }
     if (tool === 'gpath') {
-      const currentActiveGPathId =
-        activeGPathId && selectedIds.includes(activeGPathId)
-          ? activeGPathId
-          : null
+      evt.cancelBubble = true
+      const currentActiveGPathId = activeGPathId || null
       const activeExists =
         currentActiveGPathId && nodes.some((n) => n.id === currentActiveGPathId && n.type === 'gpath')
       if (!currentActiveGPathId || !activeExists) {
-        const id = addGPath(normalized)
+        const point = {
+          x: normalized.x * (stage.width / displayStage.width),
+          y: normalized.y * (stage.height / displayStage.height),
+        }
+        const id = addGPath(point)
         setActiveGPathId(id)
       } else {
         const node = nodes.find((n): n is GPathNode => n.id === currentActiveGPathId && n.type === 'gpath')
+        const point = {
+          x: normalized.x * (stage.width / displayStage.width),
+          y: normalized.y * (stage.height / displayStage.height),
+        }
         if (node && node.points.length > 1) {
           const first = { x: node.x + node.points[0].x, y: node.y + node.points[0].y }
-          const dist = Math.hypot(normalized.x - first.x, normalized.y - first.y)
+          const dist = Math.hypot(point.x - first.x, point.y - first.y)
           if (dist <= closeThreshold) {
             appendGPathPoint(currentActiveGPathId, first)
             setTool('select')
@@ -456,31 +515,62 @@ export const CanvasStage = () => {
             return
           }
         }
-        appendGPathPoint(currentActiveGPathId, normalized)
+        appendGPathPoint(currentActiveGPathId, point)
       }
       setTool('gpath')
       return
     }
     const isEmpty = evt.target === stageEl || evt.target === backgroundRef.current
     if (!isEmpty) return
-    if (tool === 'rect') addRect(normalized.x - 30, normalized.y - 24)
-    else if (tool === 'text') addText(normalized.x - 40, normalized.y - 12)
-    else if (tool === 'time') addTimeText(normalized.x - 40, normalized.y - 12)
-    else if (tool === 'image-time') addImageTime(normalized.x - 58, normalized.y - 16)
+    if (tool === 'rect') {
+      const position = toDesignPosition({ x: normalized.x - 30, y: normalized.y - 24, width: 64, height: 48 })
+      addRect(position.x, position.y)
+    } else if (tool === 'text') {
+      const position = toDesignPosition({ x: normalized.x - 40, y: normalized.y - 12, width: 120, height: 36 })
+      addText(position.x, position.y)
+    } else if (tool === 'time') {
+      const position = toDesignPosition({ x: normalized.x - 40, y: normalized.y - 12, width: 140, height: 36 })
+      addTimeText(position.x, position.y)
+    } else if (tool === 'image-time') {
+      const position = toDesignPosition({ x: normalized.x - 58, y: normalized.y - 16, width: 116, height: 32 })
+      addImageTime(position.x, position.y)
+    }
     else setSelection([])
   }
 
-  const displayNodes = useMemo(() => nodes, [nodes])
+  const displayNodes = useMemo(
+    () => nodes.map((node) => mapNodeToStage(node, stage, displayStage)),
+    [nodes, stage, displayStage],
+  )
 
   return (
     <div className="relative flex flex-col items-center gap-3">
-      <div className="text-xs uppercase tracking-[0.2em] text-black/70">Canvas {stage.width}×{stage.height}</div>
+      <div className="flex flex-wrap items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] text-black/70">
+        <span>Canvas {displayStage.width}×{displayStage.height}</span>
+        {previewOptions.length > 1 && (
+          <select
+            value={previewValue}
+            onChange={(e) => {
+              const selected = previewOptions.find((option) => option.id === e.target.value)
+              setPreviewStage(selected?.size ?? null)
+            }}
+            className="h-8 border border-black bg-white px-2 text-[11px] tracking-normal uppercase"
+          >
+            {previewOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        )}
+        {isPreviewingTarget && <span className="tracking-normal text-black/50">position preview</span>}
+      </div>
       <div
         className="retro-panel p-3"
       >
         <Stage
-          width={stage.width * scale}
-          height={stage.height * scale}
+          width={displayStage.width * scale}
+          height={displayStage.height * scale}
           scaleX={scale}
           scaleY={scale}
           ref={stageRef}
@@ -492,12 +582,16 @@ export const CanvasStage = () => {
             <Rect
               x={0}
               y={0}
-              width={stage.width}
-              height={stage.height}
+              width={displayStage.width}
+              height={displayStage.height}
               {...getFillProps(backgroundColor)}
               cornerRadius={12}
-              onClick={() => setSelection([])}
-              onTap={() => setSelection([])}
+              onClick={() => {
+                if (tool !== 'gpath') setSelection([])
+              }}
+              onTap={() => {
+                if (tool !== 'gpath') setSelection([])
+              }}
               ref={(el) => {
                 backgroundRef.current = el
               }}

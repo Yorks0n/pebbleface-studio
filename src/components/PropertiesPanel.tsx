@@ -70,38 +70,12 @@ export const PropertiesPanel = () => {
     addCustomFont,
     backgroundColor,
     setBackgroundColor,
-    targetPlatforms,
-    setTargetPlatforms,
-    stage,
     aplitePreview,
     toggleAplite,
   } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const digitInputRef = useRef<HTMLInputElement>(null)
-
-  // Determine primary group based on stage dimensions
-  const isBasalt = stage.width === 144
-  const isEmery = stage.width === 200
-  const isChalk = stage.width === 180
-  const isGabbro = stage.width === 260
-
-  const handleTogglePlatform = (platform: string, enabled: boolean) => {
-    if (enabled) {
-      setTargetPlatforms([...targetPlatforms, platform])
-    } else {
-      setTargetPlatforms(targetPlatforms.filter((p) => p !== platform))
-    }
-  }
-
-  const handleToggleBasaltGroup = (enabled: boolean) => {
-    const basaltPlatforms = ['aplite', 'basalt', 'diorite', 'flint']
-    if (enabled) {
-      setTargetPlatforms([...new Set([...targetPlatforms, ...basaltPlatforms])])
-    } else {
-      setTargetPlatforms(targetPlatforms.filter((p) => !basaltPlatforms.includes(p)))
-    }
-  }
 
   // Dynamic background based on element color, but kept light
   const bgTint =
@@ -295,82 +269,12 @@ export const PropertiesPanel = () => {
           <div className="flex items-center justify-between mb-2">
             <div>
               <div className="text-sm font-semibold text-black">Compatibility</div>
-              <div className="text-xs uppercase text-black/50">PLATFORMS</div>
+              <div className="text-xs uppercase text-black/50">ALL PEBBLE MODELS</div>
             </div>
           </div>
 
-          <div className="space-y-3 px-1">
-            {isChalk && (
-              <div className="flex items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  id="compat-gabbro"
-                  checked={targetPlatforms.includes('gabbro')}
-                  onChange={(e) => handleTogglePlatform('gabbro', e.target.checked)}
-                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
-                />
-                <label htmlFor="compat-gabbro" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
-                  Compatible with <strong className="text-black">Round 2 (Gabbro)</strong>?
-                  <span className="block text-[9px] text-black/40 mt-0.5">
-                    Canvas remains 180x180. Gabbro uses the same layout on a larger round display.
-                  </span>
-                </label>
-              </div>
-            )}
-
-            {isGabbro && (
-              <div className="flex items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  id="compat-chalk"
-                  checked={targetPlatforms.includes('chalk')}
-                  onChange={(e) => handleTogglePlatform('chalk', e.target.checked)}
-                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
-                />
-                <label htmlFor="compat-chalk" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
-                  Compatible with <strong className="text-black">Round (Chalk)</strong>?
-                  <span className="block text-[9px] text-black/40 mt-0.5">
-                    Warning: a 260x260 design might be cropped on Chalk.
-                  </span>
-                </label>
-              </div>
-            )}
-
-            {isBasalt && (
-              <div className="flex items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  id="compat-emery"
-                  checked={targetPlatforms.includes('emery')}
-                  onChange={(e) => handleTogglePlatform('emery', e.target.checked)}
-                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
-                />
-                <label htmlFor="compat-emery" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
-                  Compatible with <strong className="text-black">Emery (Pebble Time 2)</strong>?
-                  <span className="block text-[9px] text-black/40 mt-0.5">
-                    Canvas remains 144x168. Emery will center or upscale.
-                  </span>
-                </label>
-              </div>
-            )}
-
-            {isEmery && (
-              <div className="flex items-start gap-2.5">
-                <input
-                  type="checkbox"
-                  id="compat-basalt"
-                  checked={targetPlatforms.includes('basalt')}
-                  onChange={(e) => handleToggleBasaltGroup(e.target.checked)}
-                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
-                />
-                <label htmlFor="compat-basalt" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
-                  Compatible with <strong className="text-black">Standard Rect (144x168)</strong>?
-                  <span className="block text-[9px] text-black/40 mt-0.5">
-                    Warning: Design might be cropped on smaller screens.
-                  </span>
-                </label>
-              </div>
-            )}
+          <div className="text-[11px] text-black/60 leading-snug">
+            The selected project size is only the design canvas. Export and preview include all supported Pebble resolutions.
           </div>
         </div>
 
