@@ -17,6 +17,7 @@ interface ImageImportDialogProps {
 const PRESETS = [
   { label: 'Basalt (144x168)', w: 144, h: 168 },
   { label: 'Chalk (180x180)', w: 180, h: 180 },
+  { label: 'Gabbro (260x260)', w: 260, h: 260 },
   { label: 'Emery (200x228)', w: 200, h: 228 },
   { label: 'Icon (28x28)', w: 28, h: 28 },
 ]

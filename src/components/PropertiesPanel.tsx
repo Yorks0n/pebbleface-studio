@@ -84,6 +84,7 @@ export const PropertiesPanel = () => {
   const isBasalt = stage.width === 144
   const isEmery = stage.width === 200
   const isChalk = stage.width === 180
+  const isGabbro = stage.width === 260
 
   const handleTogglePlatform = (platform: string, enabled: boolean) => {
     if (enabled) {
@@ -302,9 +303,39 @@ export const PropertiesPanel = () => {
 
           <div className="space-y-3 px-1">
             {isChalk && (
-              <p className="text-[10px] text-black/40 italic leading-snug">
-                Round (Chalk) projects are restricted to their own platform due to layout differences.
-              </p>
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="compat-gabbro"
+                  checked={targetPlatforms.includes('gabbro')}
+                  onChange={(e) => handleTogglePlatform('gabbro', e.target.checked)}
+                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
+                />
+                <label htmlFor="compat-gabbro" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
+                  Compatible with <strong className="text-black">Round 2 (Gabbro)</strong>?
+                  <span className="block text-[9px] text-black/40 mt-0.5">
+                    Canvas remains 180x180. Gabbro uses the same layout on a larger round display.
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {isGabbro && (
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="compat-chalk"
+                  checked={targetPlatforms.includes('chalk')}
+                  onChange={(e) => handleTogglePlatform('chalk', e.target.checked)}
+                  className="mt-0.5 w-3.5 h-3.5 rounded-none border-black accent-black"
+                />
+                <label htmlFor="compat-chalk" className="text-[11px] text-black/70 cursor-pointer select-none leading-tight">
+                  Compatible with <strong className="text-black">Round (Chalk)</strong>?
+                  <span className="block text-[9px] text-black/40 mt-0.5">
+                    Warning: a 260x260 design might be cropped on Chalk.
+                  </span>
+                </label>
+              </div>
             )}
 
             {isBasalt && (

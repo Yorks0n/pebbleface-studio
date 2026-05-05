@@ -22,6 +22,14 @@ const PLATFORM_GROUPS = {
     w: 180,
     h: 180,
   },
+  gabbro: {
+    id: 'gabbro',
+    label: 'Round 2 (Gabbro)',
+    desc: '260 x 260 (Pebble Round 2)',
+    platforms: ['gabbro'],
+    w: 260,
+    h: 260,
+  },
   emery: {
     id: 'emery',
     label: 'Large Rect (Emery)',
@@ -38,6 +46,8 @@ export const NewProjectWizard = () => {
   const [selectedSize, setSelectedSize] = useState<keyof typeof PLATFORM_GROUPS>('basalt')
   const [addEmery, setAddEmery] = useState(false) // When Basalt is selected
   const [addBasalt, setAddBasalt] = useState(false) // When Emery is selected
+  const [addChalk, setAddChalk] = useState(false) // When Gabbro is selected
+  const [addGabbro, setAddGabbro] = useState(false) // When Chalk is selected
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (isInitialized) return null
@@ -51,6 +61,10 @@ export const NewProjectWizard = () => {
       platforms.push('emery')
     } else if (selectedSize === 'emery' && addBasalt) {
       platforms = [...platforms, ...PLATFORM_GROUPS.basalt.platforms]
+    } else if (selectedSize === 'gabbro' && addChalk) {
+      platforms.push('chalk')
+    } else if (selectedSize === 'chalk' && addGabbro) {
+      platforms.push('gabbro')
     }
 
     setProjectSettings(primary.w, primary.h, platforms, projectName)
@@ -109,7 +123,7 @@ export const NewProjectWizard = () => {
         </div>
 
         {/* 1. Size Selection */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {(Object.keys(PLATFORM_GROUPS) as Array<keyof typeof PLATFORM_GROUPS>).map((key) => {
             const group = PLATFORM_GROUPS[key]
             const isSelected = selectedSize === key
@@ -120,6 +134,8 @@ export const NewProjectWizard = () => {
                   setSelectedSize(key)
                   setAddEmery(false)
                   setAddBasalt(false)
+                  setAddChalk(false)
+                  setAddGabbro(false)
                 }}
                 className={`relative flex flex-col items-center justify-center gap-3 p-6 border-2 transition-all ${
                   isSelected
@@ -132,8 +148,11 @@ export const NewProjectWizard = () => {
                     <Check size={16} strokeWidth={3} />
                   </div>
                 )}
-                {key === 'chalk' ? (
-                  <div className="w-12 h-12 rounded-full border-2 border-current opacity-80" />
+                {key === 'chalk' || key === 'gabbro' ? (
+                  <div
+                    className="rounded-full border-2 border-current opacity-80"
+                    style={{ width: group.w / 4, height: group.h / 4 }}
+                  />
                 ) : (
                   <div
                     className="border-2 border-current opacity-80 rounded-none"
@@ -158,9 +177,21 @@ export const NewProjectWizard = () => {
           </h3>
           
           {selectedSize === 'chalk' && (
-            <p className="text-sm text-black/40 italic">
-              Pebble Time Round (Chalk) projects are exclusive and cannot share a codebase with rectangular watches due to layout differences.
-            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="add-gabbro"
+                checked={addGabbro}
+                onChange={(e) => setAddGabbro(e.target.checked)}
+                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
+              />
+              <label htmlFor="add-gabbro" className="text-sm text-black/70 cursor-pointer select-none">
+                Also compatible with <strong className="text-black">Round 2 (Gabbro)</strong>?
+                <span className="block text-xs text-black/40 mt-0.5">
+                  Canvas will remain 180x180. Gabbro will use the same layout on a larger round display.
+                </span>
+              </label>
+            </div>
           )}
 
           {selectedSize === 'basalt' && (
@@ -181,7 +212,25 @@ export const NewProjectWizard = () => {
             </div>
           )}
 
-           {selectedSize === 'emery' && (
+          {selectedSize === 'gabbro' && (
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="add-chalk"
+                checked={addChalk}
+                onChange={(e) => setAddChalk(e.target.checked)}
+                className="w-4 h-4 rounded-none border-black/30 bg-white accent-black"
+              />
+              <label htmlFor="add-chalk" className="text-sm text-black/70 cursor-pointer select-none">
+                Also compatible with <strong className="text-black">Round (Chalk)</strong>?
+                <span className="block text-xs text-black/40 mt-0.5">
+                  Warning: a 260x260 design might be cropped on Chalk's 180x180 screen.
+                </span>
+              </label>
+            </div>
+          )}
+
+          {selectedSize === 'emery' && (
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
