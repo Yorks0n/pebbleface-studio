@@ -118,12 +118,12 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-none">
-      <div className="bg-white w-[90vw] max-w-4xl h-[80vh] overflow-hidden flex shadow-none border-2 border-black">
+    <div className="modal-backdrop p-4" role="dialog" aria-modal="true" aria-labelledby="import-image-title">
+      <div className="modal-card flex h-[80vh] w-[90vw] max-w-4xl">
         
         {/* Left: Canvas Area */}
         <div className="flex-1 bg-[#101010] relative overflow-hidden flex flex-col" ref={containerRef}>
-          <div className="absolute top-4 left-4 z-10 bg-white border border-black px-3 py-1.5 text-xs text-black pointer-events-none">
+          <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md border border-white/20 bg-slate-950/75 px-3 py-1.5 text-xs text-white backdrop-blur">
             Scroll to zoom • Drag to move
           </div>
           
@@ -176,8 +176,8 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
           </Stage>
           
           {/* Zoom Controls Overlay */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white px-4 py-2 border border-black shadow-none">
-             <ZoomOut size={16} className="text-black" />
+          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-4 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-lg">
+             <ZoomOut size={16} className="text-slate-500" />
              <input 
                type="range" 
                min="0.1" 
@@ -185,26 +185,26 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
                step="0.01" 
                value={imgState.scale}
                onChange={(e) => setImgState(prev => ({ ...prev, scale: parseFloat(e.target.value) }))}
-               className="w-32 accent-black h-1.5 bg-[#eee] appearance-none cursor-pointer"
+               className="h-1.5 w-32 cursor-pointer appearance-none rounded-full bg-slate-200 accent-indigo-600"
              />
-             <ZoomIn size={16} className="text-black" />
-             <span className="text-xs text-black w-12 text-right">{Math.round(imgState.scale * 100)}%</span>
+             <ZoomIn size={16} className="text-slate-500" />
+             <span className="w-12 text-right text-xs font-medium text-slate-600">{Math.round(imgState.scale * 100)}%</span>
           </div>
         </div>
 
         {/* Right: Controls */}
-        <div className="w-80 bg-white border-l-2 border-black p-6 flex flex-col gap-6 overflow-y-auto text-black">
+        <div className="flex w-80 flex-col gap-6 overflow-y-auto border-l border-slate-200 bg-white p-6 text-slate-800">
           <div>
-            <h2 className="text-xl font-bold text-black mb-2">Import Image</h2>
-            <p className="text-sm text-black/50">Set target size and position image.</p>
+            <h2 id="import-image-title" className="mb-2 text-xl font-semibold tracking-tight text-slate-950">Import image</h2>
+            <p className="text-sm text-slate-500">Set the output size, then position and crop the image.</p>
           </div>
 
           {/* Size Inputs */}
           <div className="space-y-4">
-            <Label className="text-black/70">Target Size</Label>
+            <Label className="text-xs font-semibold text-slate-700">Target size</Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-[10px] text-black/60">Width</Label>
+                <Label className="text-[10px] text-slate-500">Width</Label>
                 <Input
                   type="number"
                   value={targetSize.width}
@@ -212,7 +212,7 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[10px] text-black/60">Height</Label>
+                <Label className="text-[10px] text-slate-500">Height</Label>
                 <Input
                   type="number"
                   value={targetSize.height}
@@ -224,7 +224,7 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
 
           {/* Presets */}
           <div className="space-y-2">
-            <Label className="text-black/70">Quick Presets</Label>
+            <Label className="text-xs font-semibold text-slate-700">Quick presets</Label>
             <div className="grid grid-cols-2 gap-2">
               {PRESETS.map(p => (
                 <Button 
@@ -243,7 +243,7 @@ export const ImageImportDialog = ({ isOpen, file, onClose, onConfirm }: ImageImp
           <div className="flex-1" />
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t-2 border-black">
+          <div className="flex gap-3 border-t border-slate-200 pt-4">
             <Button variant="ghost" className="flex-1" onClick={onClose}>
               <X size={16} /> Cancel
             </Button>

@@ -23,32 +23,34 @@ export const ColorSelect = ({ label, value, onChange }: Props) => {
   }, [])
 
   return (
-    <div className="relative grid grid-cols-[90px_1fr] items-center gap-3" ref={ref}>
-      <div className="text-[11px] text-[#666] uppercase">{label}</div>
+    <div className="relative grid grid-cols-[78px_1fr] items-center gap-3" ref={ref}>
+      <div className="inspector-label">{label}</div>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center border border-black bg-white px-3 py-1.5 text-sm text-black hover:bg-[#f0f0f0] transition rounded-none h-9"
+        className="flex h-9 w-full items-center rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+        aria-label={`${label} color ${value}`}
+        aria-expanded={open}
       >
-        <div className="flex w-full items-center">
-          <span
-            className="inline-block h-4 w-full border border-black/20"
-            style={{ background: value }}
-          />
-        </div>
+        <span
+          className="mr-2 inline-block h-4 w-4 shrink-0 rounded border border-black/10"
+          style={{ background: value }}
+        />
+        <span className="font-mono text-[11px] uppercase">{value}</span>
       </button>
       {open && (
-        <div className="absolute z-20 left-0 right-0 top-full mt-1 border border-black bg-white p-3 shadow-xl">
-          <div className="grid grid-cols-10 gap-1.5">
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
+          <div className="grid grid-cols-8 gap-1.5">
             {pebbleColors.map((c) => (
               <button
                 key={c.hex}
                 className={cn(
-                  'h-6 border border-black/10 transition focus:outline-none focus:ring-1 focus:ring-black focus:ring-offset-1',
-                  value === c.hex ? 'ring-1 ring-black ring-offset-1' : 'hover:scale-110',
+                  'h-6 rounded border border-black/10 transition focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1',
+                  value === c.hex ? 'ring-2 ring-indigo-500 ring-offset-1' : 'hover:scale-110',
                 )}
                 style={{ background: c.hex }}
                 title={`${c.name} (${c.hex})`}
+                aria-label={`${c.name} ${c.hex}`}
                 onClick={() => {
                   onChange(c.hex)
                   setOpen(false)

@@ -4,24 +4,24 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black disabled:pointer-events-none disabled:opacity-50 gap-2 border',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 disabled:pointer-events-none disabled:opacity-45',
   {
     variants: {
       variant: {
         default:
-          'bg-black text-white border-black hover:bg-[#333] hover:border-[#333]',
+          'border-indigo-600 bg-indigo-600 text-white hover:border-indigo-700 hover:bg-indigo-700',
         subtle:
-          'bg-white text-black border-black hover:bg-[#eee]',
-        ghost: 'bg-transparent text-[#666] border-transparent hover:text-black hover:bg-[#eee]',
+          'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50',
+        ghost: 'border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-950',
         outline:
-          'bg-transparent border-black text-black hover:bg-black hover:text-white',
-        destructive: 'bg-white text-red-600 border-red-600 hover:bg-red-600 hover:text-white',
+          'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50',
+        destructive: 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50',
       },
       size: {
-        default: 'h-9 px-4 py-2',
-        sm: 'h-8 px-3 text-xs',
-        lg: 'h-11 px-8 text-base',
-        icon: 'h-9 w-9 p-0',
+        default: 'h-9 px-3.5 py-2',
+        sm: 'h-8 px-2.5 text-xs',
+        lg: 'h-10 px-4 text-sm',
+        icon: 'h-8 w-8 p-0',
       },
     },
     defaultVariants: {
