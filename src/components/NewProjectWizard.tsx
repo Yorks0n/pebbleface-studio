@@ -71,14 +71,24 @@ export const NewProjectWizard = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/90 backdrop-blur-none">
-      <div className="w-full max-w-2xl bg-white border border-black p-8 shadow-none animate-in fade-in zoom-in-95 duration-200 retro-panel">
+    <div className="modal-backdrop z-[100] p-4">
+      <div
+        className="modal-card max-h-[92vh] w-full max-w-2xl overflow-y-auto p-7 md:p-8"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-watchface-title"
+      >
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold text-black font-display">New Watchface</h1>
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="brand-mark brand-mark-small" aria-hidden="true"><span /></div>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600">Pebble Face Studio</span>
+            </div>
+            <h1 id="new-watchface-title" className="text-2xl font-semibold tracking-tight text-slate-950">New watchface</h1>
+          </div>
           <Button
             variant="outline"
             size="sm"
-            className="rounded-none border-2 border-black font-semibold hover:bg-black hover:text-white"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload size={14} className="mr-2" />
@@ -86,11 +96,11 @@ export const NewProjectWizard = () => {
           </Button>
           <input type="file" accept=".pfs" ref={fileInputRef} className="hidden" onChange={handleImport} />
         </div>
-        <p className="text-black/50 mb-8">Set up your new Pebble project or resume work.</p>
+        <p className="mb-7 text-sm text-slate-500">Choose a design base or resume work from a local project file.</p>
 
         {/* Project Name */}
-        <div className="mb-8 space-y-2">
-          <Label htmlFor="project-name" className="text-sm font-semibold uppercase tracking-wider text-black/70">
+        <div className="mb-7 space-y-2">
+          <Label htmlFor="project-name" className="text-xs font-medium text-slate-600">
             Project Name
           </Label>
           <Input
@@ -98,12 +108,12 @@ export const NewProjectWizard = () => {
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             placeholder="e.g. My Watchface"
-            className="rounded-none border-2 border-black focus-visible:ring-0 text-lg h-12"
+            className="h-11 text-base"
           />
         </div>
 
         {/* 1. Size Selection */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="mb-7 grid grid-cols-2 gap-3 md:grid-cols-4">
           {(Object.keys(PLATFORM_GROUPS) as Array<keyof typeof PLATFORM_GROUPS>).map((key) => {
             const group = PLATFORM_GROUPS[key]
             const isSelected = selectedSize === key
@@ -111,14 +121,14 @@ export const NewProjectWizard = () => {
               <button
                 key={key}
                 onClick={() => setSelectedSize(key)}
-                className={`relative flex flex-col items-center justify-center gap-3 p-6 border-2 transition-all ${
+                className={`relative flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border p-4 transition-all ${
                   isSelected
-                    ? 'border-black bg-black text-white'
-                    : 'border-[#ccc] bg-white text-black hover:border-black hover:bg-[#f0f0f0]'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-100'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50'
                 }`}
               >
                 {isSelected && (
-                  <div className="absolute top-3 right-3 text-white">
+                  <div className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-indigo-600 text-white">
                     <Check size={16} strokeWidth={3} />
                   </div>
                 )}
@@ -134,17 +144,17 @@ export const NewProjectWizard = () => {
                   />
                 )}
                 <div className="text-center">
-                  <div className={`font-semibold ${isSelected ? 'text-white' : 'text-black/70'}`}>
+                  <div className={`text-sm font-semibold ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>
                     {group.label}
                   </div>
-                  <div className={`text-xs mt-1 ${isSelected ? 'text-white/60' : 'text-black/40'}`}>{group.desc}</div>
+                  <div className={`mt-1 text-[10px] leading-relaxed ${isSelected ? 'text-indigo-500' : 'text-slate-400'}`}>{group.desc}</div>
                 </div>
               </button>
             )
           })}
         </div>
 
-        <Button onClick={handleCreate} size="lg" className="w-full h-12 text-lg rounded-none border-2 border-black bg-black text-white hover:bg-white hover:text-black hover:border-black">
+        <Button onClick={handleCreate} size="lg" className="h-11 w-full">
           Create Project
         </Button>
       </div>
