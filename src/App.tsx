@@ -254,10 +254,6 @@ function App() {
               <span className="previewbar-label">Mapping</span>
               <span className="previewbar-value">Position only</span>
             </div>
-            <div className="ml-auto hidden items-center gap-2 text-xs text-slate-500 md:flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Preview ready
-            </div>
           </div>
         </section>
 
@@ -289,9 +285,21 @@ function App() {
           <span className="status-label">Preview device</span>
           <span>{activeStage.width}×{activeStage.height}</span>
         </div>
-        <div className="ml-auto text-emerald-600">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          Ready
+        <div className="ml-auto flex items-center gap-4">
+          <a
+            href="https://github.com/Yorks0n/pebbleface-studio"
+            target="_blank"
+            rel="noreferrer"
+            className="text-slate-500 transition-colors hover:text-indigo-600"
+          >
+            Source
+          </a>
+          <a
+            href="mailto:pebbleface@yorks0n.com"
+            className="text-slate-500 transition-colors hover:text-indigo-600"
+          >
+            Feedback
+          </a>
         </div>
       </footer>
 
