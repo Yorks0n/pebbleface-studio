@@ -1,4 +1,4 @@
-import { Trash, AlertCircle, Info } from 'lucide-react'
+import { Trash, AlertCircle, Info, Lock } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   useSceneStore,
@@ -87,15 +87,15 @@ export const PropertiesPanel = () => {
   const bgStyle = target ? { background: `linear-gradient(135deg, ${bgTint}11, #ffffff)` } : { background: '#ffffff' }
 
   const update = (key: SceneNodeKey, value: unknown) => {
-    if (!target) return
+    if (!target || target.locked) return
     updateNode(target.id, { [key]: value } as Partial<SceneNode>)
   }
   const updateTime = (key: TimeKeys, value: TimeNode[TimeKeys]) => {
-    if (!target || target.type !== 'time') return
+    if (!target || target.locked || target.type !== 'time') return
     updateNode(target.id, { [key]: value } as Partial<SceneNode>)
   }
   const updateImageTime = (data: Partial<ImageTimeNode>) => {
-    if (!target || target.type !== 'image-time') return
+    if (!target || target.locked || target.type !== 'image-time') return
     updateNode(target.id, data as Partial<SceneNode>)
   }
 
@@ -285,6 +285,7 @@ export const PropertiesPanel = () => {
           size="icon"
           variant="ghost"
           onClick={() => removeNode(target.id)}
+          disabled={target.locked}
           title="Remove"
           aria-label={`Remove ${target.name}`}
           className="ml-auto text-rose-500 hover:bg-rose-50 hover:text-rose-600"
@@ -292,6 +293,18 @@ export const PropertiesPanel = () => {
           <Trash size={16} />
         </Button>
       </div>
+
+      {target.locked && (
+        <div className="flex items-center gap-2 border-b border-indigo-100 bg-indigo-50 px-3 py-2 text-[11px] font-medium text-indigo-700">
+          <Lock size={13} />
+          Layer locked. Unlock it in Layers to edit.
+        </div>
+      )}
+
+      <div
+        className={target.locked ? 'pointer-events-none select-none opacity-50' : undefined}
+        aria-disabled={target.locked || undefined}
+      >
 
       <InspectorSection title="Transform">
         <div className="grid grid-cols-2 gap-2">
@@ -695,6 +708,7 @@ export const PropertiesPanel = () => {
         className="hidden"
         onChange={handleDigitUpload}
       />
+      </div>
     </div>
   )
 }

@@ -5,6 +5,8 @@ import {
   Image,
   Images,
   Layers,
+  Lock,
+  LockOpen,
   MoveDown,
   MoveUp,
   PenTool,
@@ -34,7 +36,7 @@ const typeIcon: Record<SceneNode['type'], typeof Square> = {
 }
 
 export const LayerPanel = () => {
-  const { nodes, moveLayer, selectedIds, setSelection, removeNode } = useSceneStore()
+  const { nodes, moveLayer, selectedIds, setSelection, toggleNodeLock, removeNode } = useSceneStore()
   const ordered = [...nodes].reverse()
   const activeId = selectedIds[0]
   const activeNode = nodes.find((node) => node.id === activeId)
@@ -70,22 +72,37 @@ export const LayerPanel = () => {
               const isActive = selectedIds.includes(node.id)
               const Icon = typeIcon[node.type]
               return (
-                <button
+                <div
                   key={node.id}
-                  type="button"
-                  className={`layer-row ${isActive ? 'layer-row-active' : ''}`}
-                  onClick={() => setSelection([node.id])}
-                  aria-pressed={isActive}
+                  className={`layer-row ${isActive ? 'layer-row-active' : ''} ${node.locked ? 'layer-row-locked' : ''}`}
                 >
-                  <span className="layer-index">{nodes.length - index}</span>
-                  <span className="layer-icon">
-                    <Icon size={14} />
-                  </span>
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-xs font-medium text-slate-800">{node.name}</span>
-                    <span className="block truncate text-[10px] text-slate-400">{typeLabel[node.type]}</span>
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-left"
+                    onClick={() => setSelection([node.id])}
+                    aria-pressed={isActive}
+                  >
+                    <span className="layer-index">{nodes.length - index}</span>
+                    <span className="layer-icon">
+                      <Icon size={14} />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block truncate text-xs font-medium text-slate-800">{node.name}</span>
+                      <span className="block truncate text-[10px] text-slate-400">{typeLabel[node.type]}</span>
+                    </span>
+                  </button>
+                  {node.locked && (
+                    <button
+                      type="button"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
+                      onClick={() => toggleNodeLock(node.id)}
+                      title={`Unlock ${node.name}`}
+                      aria-label={`Unlock ${node.name}`}
+                    >
+                      <Lock size={14} />
+                    </button>
+                  )}
+                </div>
               )
             })}
           </div>
@@ -100,7 +117,7 @@ export const LayerPanel = () => {
           <Button
             variant="ghost"
             size="icon"
-            disabled={!activeId}
+            disabled={!activeId || activeNode?.locked}
             onClick={() => activeId && moveLayer(activeId, 'top')}
             title="Move to top"
             aria-label="Move selected layer to top"
@@ -110,7 +127,7 @@ export const LayerPanel = () => {
           <Button
             variant="ghost"
             size="icon"
-            disabled={!activeId}
+            disabled={!activeId || activeNode?.locked}
             onClick={() => activeId && moveLayer(activeId, 'up')}
             title="Move up"
             aria-label="Move selected layer up"
@@ -120,7 +137,7 @@ export const LayerPanel = () => {
           <Button
             variant="ghost"
             size="icon"
-            disabled={!activeId}
+            disabled={!activeId || activeNode?.locked}
             onClick={() => activeId && moveLayer(activeId, 'down')}
             title="Move down"
             aria-label="Move selected layer down"
@@ -130,7 +147,7 @@ export const LayerPanel = () => {
           <Button
             variant="ghost"
             size="icon"
-            disabled={!activeId}
+            disabled={!activeId || activeNode?.locked}
             onClick={() => activeId && moveLayer(activeId, 'bottom')}
             title="Move to bottom"
             aria-label="Move selected layer to bottom"
@@ -142,10 +159,21 @@ export const LayerPanel = () => {
             variant="ghost"
             size="icon"
             disabled={!activeId}
+            onClick={() => activeId && toggleNodeLock(activeId)}
+            title={activeNode?.locked ? 'Unlock layer' : 'Lock layer'}
+            aria-label={activeNode?.locked ? 'Unlock selected layer' : 'Lock selected layer'}
+            className={`ml-auto ${activeNode?.locked ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100' : 'text-slate-500'}`}
+          >
+            {activeNode?.locked ? <LockOpen size={14} /> : <Lock size={14} />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={!activeId || activeNode?.locked}
             onClick={() => activeId && removeNode(activeId)}
             title="Delete layer"
             aria-label="Delete selected layer"
-            className="ml-auto text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
           >
             <Trash size={14} />
           </Button>

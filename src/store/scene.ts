@@ -15,6 +15,7 @@ export type BaseNode = {
   id: string
   name: string
   type: 'rect' | 'text' | 'bitmap' | 'time' | 'image-time' | 'gpath'
+  locked?: boolean
   x: number
   y: number
   width: number
@@ -167,6 +168,7 @@ export type SceneState = {
   addGPath: (point: { x: number; y: number }) => string
   appendGPathPoint: (id: string, point: { x: number; y: number }) => void
   updateNode: (id: string, data: Partial<SceneNode>) => void
+  toggleNodeLock: (id: string) => void
   removeNode: (id: string) => void
   moveLayer: (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => void
 }
@@ -467,6 +469,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
           const imageTimeNode = n as ImageTimeNode & { digits?: { digit: string; dataUrl: string; fileName: string }[] }
           return {
             ...imageTimeNode,
+            locked: Boolean(imageTimeNode.locked),
             mode: imageTimeNode.mode || 'time',
             timeFormat: imageTimeNode.timeFormat || '24h',
             dateFormat: imageTimeNode.dateFormat || 'MM',
@@ -478,7 +481,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
             })) || []).map((glyph) => ({ ...glyph, key: glyph.key.toUpperCase(), file: null })),
           }
         }
-        return { ...n, file: null }
+        return { ...n, locked: Boolean(n.locked), file: null }
       }) as SceneNode[],
       isInitialized: true,
       selectedIds: [],
@@ -515,7 +518,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   appendGPathPoint: (id, point) =>
     set((state) => {
       const nodes = state.nodes.map((n) => {
-        if (n.id !== id || n.type !== 'gpath') return n
+        if (n.id !== id || n.type !== 'gpath' || n.locked) return n
         const absolutePoints = n.points.map((p) => ({ x: n.x + p.x, y: n.y + p.y }))
         absolutePoints.push(point)
         const normalized = normalizeGPathPoints(absolutePoints)
@@ -532,14 +535,27 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     }),
   updateNode: (id, data) =>
     set((state) => ({
-      nodes: state.nodes.map((n) => (n.id === id ? ({ ...n, ...data } as SceneNode) : n)) as SceneNode[],
+      nodes: state.nodes.map((n) => (n.id === id && !n.locked ? ({ ...n, ...data } as SceneNode) : n)) as SceneNode[],
+    })),
+  toggleNodeLock: (id) =>
+    set((state) => ({
+      nodes: state.nodes.map((n) =>
+        n.id === id ? ({ ...n, locked: !n.locked } as SceneNode) : n,
+      ) as SceneNode[],
     })),
   removeNode: (id) =>
-    set((state) => ({
-      nodes: state.nodes.filter((n) => n.id !== id),
-      selectedIds: state.selectedIds.filter((sid) => sid !== id),
-    })),
-  moveLayer: (id, direction) => set({ nodes: reorderNodes(get().nodes, id, direction) as SceneNode[] }),
+    set((state) => {
+      if (state.nodes.some((n) => n.id === id && n.locked)) return state
+      return {
+        nodes: state.nodes.filter((n) => n.id !== id),
+        selectedIds: state.selectedIds.filter((sid) => sid !== id),
+      }
+    }),
+  moveLayer: (id, direction) => {
+    const nodes = get().nodes
+    if (nodes.some((n) => n.id === id && n.locked)) return
+    set({ nodes: reorderNodes(nodes, id, direction) as SceneNode[] })
+  },
 }))
 
 export const getDisplayColor = (color: string, aplite: boolean) =>
