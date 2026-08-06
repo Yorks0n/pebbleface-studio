@@ -242,32 +242,46 @@ export const PropertiesPanel = () => {
 
   if (!target) {
     return (
-      <div className="inspector-content" style={bgStyle}>
-        <InspectorSection title="Canvas">
-          <ColorSelect label="Background" value={backgroundColor} onChange={setBackgroundColor} />
-        </InspectorSection>
-
-        <InspectorSection title="Preview">
-          <div className="grid grid-cols-[90px_1fr] items-center gap-3">
-            <div className="inspector-label">Aplite mono</div>
-            <div className="flex h-9 items-center justify-end">
-              <Switch
-                checked={aplitePreview}
-                onCheckedChange={toggleAplite}
-                aria-label="Toggle Aplite monochrome preview"
-              />
+      <div className="space-y-6 border border-black p-4 bg-white" style={bgStyle}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-semibold text-black">Background Color</div>
             </div>
           </div>
-        </InspectorSection>
+          <ColorSelect label="Background" value={backgroundColor} onChange={setBackgroundColor} />
+        </div>
 
-        <InspectorSection title="Compatibility">
-          <div className="mb-2 inline-flex rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-            All Pebble models
+        <div className="pt-4 border-t border-black/10 space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-semibold text-black">Monochrome Preview</div>
+            </div>
           </div>
-          <div className="text-[11px] leading-relaxed text-slate-500">
+          <div className="grid grid-cols-[90px_1fr] items-center gap-3">
+            <div className="text-[11px] text-[#666] uppercase">Preview</div>
+            <div className="flex items-center justify-center h-9">
+              <Switch checked={aplitePreview} onClick={toggleAplite} className="scale-110" />
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-4 border-t border-black/10 space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-semibold text-black">Compatibility</div>
+              <div className="text-xs uppercase text-black/50">ALL PEBBLE MODELS</div>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-black/60 leading-snug">
             The selected project size is only the design canvas. Export and preview include all supported Pebble resolutions.
           </div>
-        </InspectorSection>
+        </div>
+
+        <div className="pt-4 text-[10px] text-black/40 italic leading-snug border-t border-black/5">
+          Tip: Select a layer on the canvas to edit its individual properties.
+        </div>
       </div>
     )
   }
@@ -276,76 +290,63 @@ export const PropertiesPanel = () => {
   const isImageTime = target.type === 'image-time'
 
   return (
-    <div className="inspector-content" style={bgStyle}>
-      <div className="inspector-selection-meta">
-        <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-          {target.type}
-        </span>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={() => removeNode(target.id)}
-          title="Remove"
-          aria-label={`Remove ${target.name}`}
-          className="ml-auto text-rose-500 hover:bg-rose-50 hover:text-rose-600"
-        >
+    <div className="space-y-3 border border-black p-4 bg-white" style={bgStyle}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold text-black">{target.name}</div>
+          <div className="text-xs uppercase text-black/50">{target.type}</div>
+        </div>
+        <Button size="icon" variant="ghost" onClick={() => removeNode(target.id)} title="Remove">
           <Trash size={16} />
         </Button>
       </div>
-
-      <InspectorSection title="Transform">
-        <div className="grid grid-cols-2 gap-2">
-          <CompactField label="X">
-            <Input
-              type="number"
-              value={Math.round(target.x)}
-              onChange={(e) => update('x', parseFloat(e.target.value) || 0)}
-            />
-          </CompactField>
-          <CompactField label="Y">
-            <Input
-              type="number"
-              value={Math.round(target.y)}
-              onChange={(e) => update('y', parseFloat(e.target.value) || 0)}
-            />
-          </CompactField>
-          <CompactField label="W">
-            <Input
-              type="number"
-              value={Math.round(target.width)}
-              min={4}
-              disabled={isGPath}
-              title={isGPath ? 'Resize GPath via canvas handles' : undefined}
-              onChange={(e) => update('width', Math.max(4, parseFloat(e.target.value) || 0))}
-            />
-          </CompactField>
-          <CompactField label="H">
-            <Input
-              type="number"
-              value={Math.round(target.height)}
-              min={4}
-              disabled={isGPath}
-              title={isGPath ? 'Resize GPath via canvas handles' : undefined}
-              onChange={(e) => update('height', Math.max(4, parseFloat(e.target.value) || 0))}
-            />
-          </CompactField>
-        </div>
-        {!isImageTime && (
-          <GridPair label="Rotation">
-            <Input
-              type="number"
-              value={Math.round(target.rotation)}
-              onChange={(e) => update('rotation', parseFloat(e.target.value) || 0)}
-            />
-          </GridPair>
-        )}
-      </InspectorSection>
-
-      <InspectorSection title="Appearance">
-        {'fill' in target && <ColorSelect label="Fill" value={target.fill} onChange={(c) => update('fill', c)} />}
-        {!isImageTime && <ColorSelect label="Stroke" value={target.stroke} onChange={(c) => update('stroke', c)} />}
-        {!isImageTime && (
-          <GridPair label="Stroke px">
+      <GridPair label="X">
+        <Input
+          type="number"
+          value={Math.round(target.x)}
+          onChange={(e) => update('x', parseFloat(e.target.value) || 0)}
+        />
+      </GridPair>
+      <GridPair label="Y">
+        <Input
+          type="number"
+          value={Math.round(target.y)}
+          onChange={(e) => update('y', parseFloat(e.target.value) || 0)}
+        />
+      </GridPair>
+      <GridPair label="Width">
+        <Input
+          type="number"
+          value={Math.round(target.width)}
+          min={4}
+          disabled={isGPath}
+          title={isGPath ? 'Resize GPath via canvas handles' : undefined}
+          onChange={(e) => update('width', Math.max(4, parseFloat(e.target.value) || 0))}
+        />
+      </GridPair>
+      <GridPair label="Height">
+        <Input
+          type="number"
+          value={Math.round(target.height)}
+          min={4}
+          disabled={isGPath}
+          title={isGPath ? 'Resize GPath via canvas handles' : undefined}
+          onChange={(e) => update('height', Math.max(4, parseFloat(e.target.value) || 0))}
+        />
+      </GridPair>
+      {!isImageTime && (
+        <GridPair label="Rotation">
+          <Input
+            type="number"
+            value={Math.round(target.rotation)}
+            onChange={(e) => update('rotation', parseFloat(e.target.value) || 0)}
+          />
+        </GridPair>
+      )}
+      {'fill' in target && <ColorSelect label="Fill" value={target.fill} onChange={(c) => update('fill', c)} />}
+      {!isImageTime && <ColorSelect label="Stroke" value={target.stroke} onChange={(c) => update('stroke', c)} />}
+      {!isImageTime && (
+        <GridPair label="Stroke px">
           <Input
             type="number"
             value={Math.round(target.strokeWidth)}
@@ -353,11 +354,10 @@ export const PropertiesPanel = () => {
             step={1}
             onChange={(e) => update('strokeWidth', Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
           />
-          </GridPair>
-        )}
-      </InspectorSection>
+        </GridPair>
+      )}
       {target.type === 'text' && (
-        <InspectorSection title="Text">
+        <>
           <GridPair label="Text">
             <Input value={target.text} onChange={(e) => update('text', e.target.value)} />
           </GridPair>
@@ -412,10 +412,10 @@ export const PropertiesPanel = () => {
               </GridPair>
             </>
           )}
-        </InspectorSection>
+        </>
       )}
       {target.type === 'time' && (
-        <InspectorSection title="Time & Date">
+        <>
           <GridPair label="Type">
             <select
               className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
@@ -525,17 +525,15 @@ export const PropertiesPanel = () => {
               </GridPair>
             </>
           )}
-        </InspectorSection>
+        </>
       )}
       {target.type === 'bitmap' && (
-        <InspectorSection title="Image">
-          <GridPair label="File">
-            <div className="truncate text-sm text-slate-600">{target.fileName}</div>
-          </GridPair>
-        </InspectorSection>
+        <GridPair label="File">
+          <div className="text-sm text-black/80 truncate">{target.fileName}</div>
+        </GridPair>
       )}
       {target.type === 'image-time' && (
-        <InspectorSection title="PNG Glyph Time">
+        <>
           <GridPair label="Mode">
             <select
               className="h-9 w-full border border-black bg-white px-3 text-sm text-black rounded-none focus:outline-none"
@@ -671,14 +669,12 @@ export const PropertiesPanel = () => {
               )
             })}
           </div>
-        </InspectorSection>
+        </>
       )}
       {target.type === 'gpath' && (
-        <InspectorSection title="Vector Path">
-          <GridPair label="Points">
-            <div className="text-sm text-slate-600">{target.points.length}</div>
-          </GridPair>
-        </InspectorSection>
+        <GridPair label="Points">
+          <div className="text-sm text-black/80">{target.points.length}</div>
+        </GridPair>
       )}
       <input
         type="file"
@@ -827,20 +823,6 @@ function GlyphPreviewLabel({ value }: { value: string }) {
 }
 
 
-const InspectorSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="inspector-section">
-    <div className="inspector-section-title">{title}</div>
-    <div className="space-y-2.5">{children}</div>
-  </section>
-)
-
-const CompactField = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="compact-field">
-    <span>{label}</span>
-    {children}
-  </label>
-)
-
 const GridPair = ({
   label,
   helpContent,
@@ -850,13 +832,13 @@ const GridPair = ({
   helpContent?: React.ReactNode
   children: React.ReactNode
 }) => (
-  <div className="grid grid-cols-[78px_minmax(0,1fr)] items-center gap-3">
+  <div className="grid grid-cols-[78px_minmax(0,1fr)] items-start gap-3">
     <div className="flex min-w-0 items-center gap-1.5">
-      <Label className="inspector-label">{label}</Label>
+      <Label className="text-[11px] text-[#666]">{label}</Label>
       {helpContent && (
         <div className="group relative flex items-center">
-          <Info size={11} className="cursor-help text-slate-400 hover:text-slate-600" />
-          <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 hidden w-52 rounded-lg border border-slate-200 bg-white p-3 shadow-xl group-hover:block">
+          <Info size={10} className="text-black/40 cursor-help hover:text-black/70" />
+          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 bg-white border border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-50 pointer-events-none">
             {helpContent}
           </div>
         </div>

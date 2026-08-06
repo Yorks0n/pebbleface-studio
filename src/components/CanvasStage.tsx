@@ -241,13 +241,11 @@ export const CanvasStage = () => {
   const shapeRefs = useRef<Record<string, Konva.Node | null>>({})
   const [now, setNow] = useState(() => new Date())
   const [activeGPathId, setActiveGPathId] = useState<string | null>(null)
-  const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight)
   const backgroundRef = useRef<Konva.Rect | null>(null)
   const closeThreshold = 8
 
+  const scale = 1.8
   const displayStage = previewStage ?? stage
-  const largestStageAxis = Math.max(displayStage.width, displayStage.height)
-  const scale = Math.min(2.6, 480 / largestStageAxis, Math.max(280, viewportHeight - 400) / largestStageAxis)
   const isPreviewingTarget = !sameStageSize(stage, displayStage)
 
   const previewOptions = useMemo(() => {
@@ -285,12 +283,6 @@ export const CanvasStage = () => {
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(t)
-  }, [])
-
-  useEffect(() => {
-    const handleResize = () => setViewportHeight(window.innerHeight)
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   const formatTimeNode = useCallback((node: TimeNode) => {
@@ -554,9 +546,9 @@ export const CanvasStage = () => {
   const roundMaskRadius = Math.max(1, Math.min(displayStage.width, displayStage.height) / 2 - 0.5)
 
   return (
-    <div className="canvas-stage-shell">
-      <div className="canvas-stage-controls">
-        <span className="font-medium text-slate-600">Canvas {displayStage.width}×{displayStage.height}</span>
+    <div className="relative flex flex-col items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] text-black/70">
+        <span>Canvas {displayStage.width}×{displayStage.height}</span>
         {previewOptions.length > 1 && (
           <select
             value={previewValue}
@@ -564,7 +556,7 @@ export const CanvasStage = () => {
               const selected = previewOptions.find((option) => option.id === e.target.value)
               setPreviewStage(selected?.size ?? null)
             }}
-            className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            className="h-8 border border-black bg-white px-2 text-[11px] tracking-normal uppercase"
           >
             {previewOptions.map((option) => (
               <option key={option.id} value={option.id}>
@@ -573,16 +565,18 @@ export const CanvasStage = () => {
             ))}
           </select>
         )}
-        {isPreviewingTarget && <span className="preview-chip">Position preview</span>}
+        {isPreviewingTarget && <span className="tracking-normal text-black/50">position preview</span>}
       </div>
-      <div className={`canvas-frame ${showRoundMaskEdge ? 'canvas-frame-round' : ''}`}>
+      <div
+        className="retro-panel p-3"
+      >
         <Stage
           width={displayStage.width * scale}
           height={displayStage.height * scale}
           scaleX={scale}
           scaleY={scale}
           ref={stageRef}
-          className="canvas-konva-stage"
+          className="bg-[#0b0d12] border-2 border-[#333] shadow-none"
           onMouseDown={onStageMouseDown}
           onTouchStart={onStageMouseDown}
         >
@@ -593,7 +587,7 @@ export const CanvasStage = () => {
               width={displayStage.width}
               height={displayStage.height}
               {...getFillProps(backgroundColor)}
-              cornerRadius={0}
+              cornerRadius={12}
               onClick={() => {
                 if (tool !== 'gpath') setSelection([])
               }}

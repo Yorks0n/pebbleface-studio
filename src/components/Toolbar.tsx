@@ -92,34 +92,37 @@ export const Toolbar = () => {
   }
 
   return (
-    <div className="studio-toolbar">
-      <div className="studio-toolbar-row">
-        <span className="toolbar-caption">Insert</span>
-        <Button variant="ghost" onClick={addRectCentered} size="sm" className="toolbar-button">
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-black">
+        Tools
+        <span className="text-[11px] uppercase text-black/60">Quick Add</span>
+      </div>
+      <div className="retro-panel p-3 flex flex-wrap items-center gap-2">
+        <Button variant="subtle" onClick={addRectCentered} size="lg" className="justify-start">
           <Square size={16} />
           Rectangle
         </Button>
-        <Button variant="ghost" onClick={addTextCentered} size="sm" className="toolbar-button">
+        <Button variant="subtle" onClick={addTextCentered} size="lg" className="justify-start">
           <Type size={16} />
           Text
         </Button>
-        <Button variant="ghost" onClick={addTimeCentered} size="sm" className="toolbar-button">
+        <Button variant="subtle" onClick={addTimeCentered} size="lg" className="justify-start">
           <Clock3 size={16} />
           Time / Date
         </Button>
-        <Button variant="ghost" onClick={addImageTimeCentered} size="sm" className="toolbar-button">
+        <Button variant="subtle" onClick={addImageTimeCentered} size="lg" className="justify-start">
           <Images size={16} />
-          PNG Glyph Time
+          PNG Time / Date
         </Button>
-        <Button variant="ghost" onClick={triggerFile} size="sm" className="toolbar-button">
+        <Button variant="subtle" onClick={triggerFile} size="lg" className="justify-start">
           <ImageIcon size={16} />
-          Image
+          Bitmap
         </Button>
         <Button
-          variant={tool === 'gpath' ? 'default' : 'ghost'}
+          variant="subtle"
           onClick={enableGPathTool}
-          size="sm"
-          className="toolbar-button"
+          size="lg"
+          className="justify-start"
           data-state={tool === 'gpath' ? 'active' : undefined}
           aria-pressed={tool === 'gpath'}
         >
@@ -127,13 +130,16 @@ export const Toolbar = () => {
           GPath
         </Button>
       </div>
-      <div className="studio-toolbar-row studio-toolbar-row-secondary">
-        <span className="toolbar-caption">Arrange</span>
+      <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-black">
+        Center
+        <span className="text-[11px] uppercase text-black/60">Selected</span>
+      </div>
+      <div className="retro-panel p-3 flex flex-wrap items-center gap-2">
         <Button
-          variant="ghost"
+          variant="subtle"
           onClick={() => centerSelection('horizontal')}
-          size="sm"
-          className="toolbar-button"
+          size="lg"
+          className="justify-start"
           disabled={!hasSelection}
           title="Center selected layers horizontally on the canvas"
         >
@@ -141,10 +147,10 @@ export const Toolbar = () => {
           Horizontal
         </Button>
         <Button
-          variant="ghost"
+          variant="subtle"
           onClick={() => centerSelection('vertical')}
-          size="sm"
-          className="toolbar-button"
+          size="lg"
+          className="justify-start"
           disabled={!hasSelection}
           title="Center selected layers vertically on the canvas"
         >
@@ -152,10 +158,10 @@ export const Toolbar = () => {
           Vertical
         </Button>
         <Button
-          variant="ghost"
+          variant="subtle"
           onClick={() => centerSelection('both')}
-          size="sm"
-          className="toolbar-button"
+          size="lg"
+          className="justify-start"
           disabled={!hasSelection}
           title="Center selected layers both horizontally and vertically"
         >

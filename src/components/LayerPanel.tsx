@@ -1,155 +1,113 @@
-import {
-  ArrowDownToLine,
-  ArrowUpToLine,
-  Clock3,
-  Image,
-  Images,
-  Layers,
-  MoveDown,
-  MoveUp,
-  PenTool,
-  Square,
-  Trash,
-  Type,
-} from 'lucide-react'
+import { ArrowDownToLine, ArrowUpToLine, Layers, MoveDown, MoveUp, Trash } from 'lucide-react'
 import { Button } from './ui/button'
-import { useSceneStore, type SceneNode } from '../store/scene'
+import { useSceneStore } from '../store/scene'
 
-const typeLabel: Record<SceneNode['type'], string> = {
-  rect: 'Rectangle',
+const typeLabel: Record<'rect' | 'text' | 'bitmap' | 'time' | 'image-time' | 'gpath', string> = {
+  rect: 'Rect',
   text: 'Text',
-  time: 'Time / Date',
-  'image-time': 'PNG Glyph Time',
-  bitmap: 'Image',
+  time: 'Time/Date',
+  'image-time': 'PNG Time/Date',
+  bitmap: 'Bitmap',
   gpath: 'GPath',
-}
-
-const typeIcon: Record<SceneNode['type'], typeof Square> = {
-  rect: Square,
-  text: Type,
-  time: Clock3,
-  'image-time': Images,
-  bitmap: Image,
-  gpath: PenTool,
 }
 
 export const LayerPanel = () => {
   const { nodes, moveLayer, selectedIds, setSelection, removeNode } = useSceneStore()
   const ordered = [...nodes].reverse()
-  const activeId = selectedIds[0]
-  const activeNode = nodes.find((node) => node.id === activeId)
-
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
-      <div className="sidebar-tabs">
-        <button className="sidebar-tab sidebar-tab-active" type="button">
-          Layers
-          <span>{nodes.length}</span>
-        </button>
-        <div className="ml-auto flex items-center pr-3 text-slate-400">
-          <Layers size={15} />
-        </div>
+    <div className="space-y-2 flex flex-col h-full w-full">
+      <div className="flex items-center gap-2 text-sm font-semibold text-black shrink-0">
+        <Layers size={16} />
+        Layers
       </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto py-2">
-        {ordered.length === 0 ? (
-          <div className="grid h-full min-h-52 place-items-center px-6 text-center">
-            <div>
-              <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400">
-                <Layers size={18} />
+      <div className="space-y-2 flex-1 overflow-auto pr-1 scrollbar-thin">
+        {ordered.map((node, index) => {
+          const isActive = selectedIds.includes(node.id)
+          return (
+            <div
+              key={node.id}
+              className={`rounded-none border px-3 py-2 text-sm transition ${
+                isActive ? 'border-black bg-[#eee]' : 'border-[#ddd] bg-white hover:border-[#aaa]'
+              }`}
+              onClick={() => setSelection([node.id])}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col min-w-0">
+                  <span className="font-medium text-black truncate">{node.name}</span>
+                  <span className="text-[11px] uppercase text-black/50">
+                    {typeLabel[node.type]} • #{index + 1}
+                  </span>
+                </div>
               </div>
-              <p className="text-sm font-medium text-slate-700">No layers yet</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                Add an element from the toolbar to start designing.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-0.5 px-2">
-            {ordered.map((node, index) => {
-              const isActive = selectedIds.includes(node.id)
-              const Icon = typeIcon[node.type]
-              return (
-                <button
-                  key={node.id}
-                  type="button"
-                  className={`layer-row ${isActive ? 'layer-row-active' : ''}`}
-                  onClick={() => setSelection([node.id])}
-                  aria-pressed={isActive}
+              <div className="mt-2 flex items-center justify-between">
+                <div className="flex gap-0.5 text-black">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveLayer(node.id, 'top')
+                    }}
+                    title="Move to top"
+                    className="h-8 w-8 p-0"
+                  >
+                    <ArrowUpToLine size={13} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveLayer(node.id, 'up')
+                    }}
+                    title="Move up"
+                    className="h-8 w-8 p-0"
+                  >
+                    <MoveUp size={13} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveLayer(node.id, 'down')
+                    }}
+                    title="Move down"
+                    className="h-8 w-8 p-0"
+                  >
+                    <MoveDown size={13} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      moveLayer(node.id, 'bottom')
+                    }}
+                    title="Move to bottom"
+                    className="h-8 w-8 p-0"
+                  >
+                    <ArrowDownToLine size={13} />
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removeNode(node.id)
+                  }}
+                  title="Remove"
+                  className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
                 >
-                  <span className="layer-index">{nodes.length - index}</span>
-                  <span className="layer-icon">
-                    <Icon size={14} />
-                  </span>
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-xs font-medium text-slate-800">{node.name}</span>
-                    <span className="block truncate text-[10px] text-slate-400">{typeLabel[node.type]}</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="layer-actions">
-        <div className="mb-2 min-w-0 truncate px-1 text-[10px] text-slate-400">
-          {activeNode ? activeNode.name : 'Select a layer to arrange it'}
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!activeId}
-            onClick={() => activeId && moveLayer(activeId, 'top')}
-            title="Move to top"
-            aria-label="Move selected layer to top"
-          >
-            <ArrowUpToLine size={14} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!activeId}
-            onClick={() => activeId && moveLayer(activeId, 'up')}
-            title="Move up"
-            aria-label="Move selected layer up"
-          >
-            <MoveUp size={14} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!activeId}
-            onClick={() => activeId && moveLayer(activeId, 'down')}
-            title="Move down"
-            aria-label="Move selected layer down"
-          >
-            <MoveDown size={14} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!activeId}
-            onClick={() => activeId && moveLayer(activeId, 'bottom')}
-            title="Move to bottom"
-            aria-label="Move selected layer to bottom"
-          >
-            <ArrowDownToLine size={14} />
-          </Button>
-          <div className="mx-1 h-5 w-px bg-slate-200" />
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!activeId}
-            onClick={() => activeId && removeNode(activeId)}
-            title="Delete layer"
-            aria-label="Delete selected layer"
-            className="ml-auto text-rose-500 hover:bg-rose-50 hover:text-rose-600"
-          >
-            <Trash size={14} />
-          </Button>
-        </div>
+                  <Trash size={13} />
+                </Button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
