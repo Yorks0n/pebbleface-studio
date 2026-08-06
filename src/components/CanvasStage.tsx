@@ -47,6 +47,7 @@ type ImageTimeProps = {
   onDragMove: (id: string, evt: Konva.KonvaEventObject<DragEvent>) => void
   onTransformEnd: (id: string) => void
   registerRef: (id: string, el: Konva.Node | null) => void
+  draggable: boolean
 }
 
 type ImageTimeDigitSpriteProps = {
@@ -119,7 +120,8 @@ const BitmapShape = ({ node, aplitePreview, onSelect, onDragMove, onDragEnd, onT
       width={node.width}
       height={node.height}
       rotation={node.rotation}
-      draggable={draggable}
+      draggable={draggable && !node.locked}
+      listening={!node.locked}
       strokeWidth={node.strokeWidth}
       stroke={displayStroke}
       onClick={(e) => onSelect(node.id, e)}
@@ -159,7 +161,7 @@ const ImageTimeDigitSprite = ({ dataUrl, x, width, height, aplitePreview }: Imag
   )
 }
 
-const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef }: ImageTimeProps) => {
+const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDragEnd, onTransformEnd, registerRef, draggable }: ImageTimeProps) => {
   const rendered = imageTimeRenderedValue(now, node)
   const layout = rendered.type === 'segmented'
     ? buildImageTimePositions(node.width, rendered.parts.length, Math.max(0, node.charSpacing), Math.max(0, node.groupSpacing))
@@ -171,7 +173,8 @@ const ImageTimeShape = ({ node, now, aplitePreview, onSelect, onDragMove, onDrag
       x={node.x}
       y={node.y}
       rotation={node.rotation}
-      draggable
+      draggable={draggable && !node.locked}
+      listening={!node.locked}
       onClick={(e) => onSelect(node.id, e)}
       onTap={(e) => onSelect(node.id, e)}
       onDragMove={(e) => onDragMove(node.id, e)}
@@ -334,9 +337,10 @@ export const CanvasStage = () => {
         return
       }
       if (selectedIds.length === 0) return
+      const editableSelectedIds = selectedIds.filter((id) => !nodes.find((node) => node.id === id)?.locked)
       if (e.key === 'Backspace' || e.key === 'Delete') {
-        selectedIds.forEach((id) => removeNode(id))
-        setSelection([])
+        editableSelectedIds.forEach((id) => removeNode(id))
+        setSelection(selectedIds.filter((id) => nodes.find((node) => node.id === id)?.locked))
         e.preventDefault()
         return
       }
@@ -348,7 +352,7 @@ export const CanvasStage = () => {
       else if (e.key === 'ArrowLeft') dx = -step
       else if (e.key === 'ArrowRight') dx = step
       if (dx === 0 && dy === 0) return
-      selectedIds.forEach((id) => {
+      editableSelectedIds.forEach((id) => {
         const node = nodes.find((n) => n.id === id)
         if (!node) return
         updateNode(id, { x: node.x + dx, y: node.y + dy })
@@ -364,6 +368,7 @@ export const CanvasStage = () => {
       evt.cancelBubble = true
       return
     }
+    if (nodes.find((node) => node.id === id)?.locked) return
     evt.cancelBubble = true
     const rawEvent = evt.evt as MouseEvent | TouchEvent | PointerEvent | undefined
     const isMulti = Boolean(rawEvent && 'shiftKey' in rawEvent && rawEvent.shiftKey)
@@ -382,7 +387,7 @@ export const CanvasStage = () => {
 
   const handleDrag = (id: string, evt: Konva.KonvaEventObject<DragEvent>) => {
     const node = nodes.find((n) => n.id === id)
-    if (!node) return
+    if (!node || node.locked) return
     const position = toDesignPosition({ ...node, x: evt.target.x(), y: evt.target.y() })
     updateNode(id, position)
   }
@@ -393,6 +398,7 @@ export const CanvasStage = () => {
     const scaleX = node.scaleX()
     const scaleY = node.scaleY()
     const targetNode = nodes.find((n) => n.id === id)
+    if (targetNode?.locked) return
     if (targetNode && targetNode.type === 'gpath') {
       const lineNode = node as Konva.Line
       const scaledPoints = targetNode.points.map((p) => ({ x: p.x * scaleX, y: p.y * scaleY }))
@@ -465,6 +471,7 @@ export const CanvasStage = () => {
     const transformer = transformerRef.current
     if (!transformer) return
     const selectedNodes = selectedIds
+      .filter((id) => !nodes.find((node) => node.id === id)?.locked)
       .map((id) => shapeRefs.current[id])
       .filter((node) => node && !(node instanceof Konva.Line && node.getAttr('dataType') === 'gpath')) as Konva.Node[]
     transformer.nodes(selectedNodes)
@@ -618,7 +625,8 @@ export const CanvasStage = () => {
                     {...getFillProps(node.fill)}
                     stroke={getBwColor(node.stroke)}
                     strokeWidth={node.strokeWidth}
-                    draggable
+                    draggable={!node.locked}
+                    listening={!node.locked}
                     onClick={handleSelectClick(node.id)}
                     onTap={handleSelectTap(node.id)}
                     onDragMove={(e) => handleDrag(node.id, e)}
@@ -643,7 +651,8 @@ export const CanvasStage = () => {
                       lineCap="round"
                       lineJoin="round"
                       hitStrokeWidth={12}
-                      draggable
+                      draggable={!node.locked}
+                      listening={!node.locked}
                       rotation={node.rotation}
                       onClick={handleSelectClick(node.id)}
                       onTap={handleSelectTap(node.id)}
@@ -652,7 +661,7 @@ export const CanvasStage = () => {
                       onTransformEnd={() => handleTransform(node.id)}
                       dataType="gpath"
                     />
-                    {selected && (
+                    {selected && !node.locked && (
                       <Group x={node.x} y={node.y} rotation={node.rotation} listening={false}>
                         <Line
                           points={points}
@@ -693,7 +702,8 @@ export const CanvasStage = () => {
                     fill={getBwColor(node.fill)}
                     stroke={getBwColor(node.stroke)}
                     strokeWidth={node.strokeWidth}
-                    draggable
+                    draggable={!node.locked}
+                    listening={!node.locked}
                     rotation={node.rotation}
                     padding={4}
                     onClick={handleSelectClick(node.id)}
@@ -719,7 +729,8 @@ export const CanvasStage = () => {
                     fill={getBwColor(node.fill)}
                     stroke={getBwColor(node.stroke)}
                     strokeWidth={node.strokeWidth}
-                    draggable
+                    draggable={!node.locked}
+                    listening={!node.locked}
                     rotation={node.rotation}
                     padding={4}
                     onClick={handleSelectClick(node.id)}
@@ -742,6 +753,7 @@ export const CanvasStage = () => {
                     onDragMove={handleDrag}
                     onTransformEnd={handleTransform}
                     registerRef={registerRef}
+                    draggable={!node.locked}
                   />
                 )
               }
@@ -755,7 +767,7 @@ export const CanvasStage = () => {
                   onDragMove={handleDrag}
                   onTransformEnd={handleTransform}
                   registerRef={registerRef}
-                  draggable
+                  draggable={!node.locked}
                 />
               )
             })}

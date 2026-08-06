@@ -166,6 +166,7 @@ const serializeProjectNode = (node: SceneNode): ProjectSceneNode => {
       id: node.id,
       name: node.name,
       type: node.type,
+      locked: Boolean(node.locked),
       x: node.x,
       y: node.y,
       width: node.width,
@@ -180,10 +181,11 @@ const serializeProjectNode = (node: SceneNode): ProjectSceneNode => {
   if (node.type === 'image-time') {
     return {
       ...node,
+      locked: Boolean(node.locked),
       glyphs: node.glyphs.map(({ key, dataUrl, fileName }) => ({ key, dataUrl, fileName })),
     }
   }
-  return node
+  return { ...node, locked: Boolean(node.locked) }
 }
 
 export function saveProjectFile() {
