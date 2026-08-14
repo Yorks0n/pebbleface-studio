@@ -343,7 +343,7 @@ export const PropertiesPanel = () => {
             />
           </CompactField>
         </div>
-        {!isImageTime && (
+        {isGPath && (
           <GridPair label="Rotation">
             <Input
               type="number"
