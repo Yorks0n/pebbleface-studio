@@ -273,7 +273,8 @@ export const PropertiesPanel = () => {
   }
 
   const isGPath = target.type === 'gpath'
-  const isImageTime = target.type === 'image-time'
+  const showsStroke = target.type === 'rect' || target.type === 'gpath'
+  const showsAppearance = 'fill' in target || showsStroke
 
   return (
     <div className="inspector-content" style={bgStyle}>
@@ -354,21 +355,23 @@ export const PropertiesPanel = () => {
         )}
       </InspectorSection>
 
-      <InspectorSection title="Appearance">
-        {'fill' in target && <ColorSelect label="Fill" value={target.fill} onChange={(c) => update('fill', c)} />}
-        {!isImageTime && <ColorSelect label="Stroke" value={target.stroke} onChange={(c) => update('stroke', c)} />}
-        {!isImageTime && (
-          <GridPair label="Stroke px">
-          <Input
-            type="number"
-            value={Math.round(target.strokeWidth)}
-            min={0}
-            step={1}
-            onChange={(e) => update('strokeWidth', Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
-          />
-          </GridPair>
-        )}
-      </InspectorSection>
+      {showsAppearance && (
+        <InspectorSection title="Appearance">
+          {'fill' in target && <ColorSelect label="Fill" value={target.fill} onChange={(c) => update('fill', c)} />}
+          {showsStroke && <ColorSelect label="Stroke" value={target.stroke} onChange={(c) => update('stroke', c)} />}
+          {showsStroke && (
+            <GridPair label="Stroke px">
+              <Input
+                type="number"
+                value={Math.round(target.strokeWidth)}
+                min={0}
+                step={1}
+                onChange={(e) => update('strokeWidth', Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
+              />
+            </GridPair>
+          )}
+        </InspectorSection>
+      )}
       {target.type === 'text' && (
         <InspectorSection title="Text">
           <GridPair label="Text">
