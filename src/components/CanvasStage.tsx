@@ -237,6 +237,7 @@ export const CanvasStage = () => {
     removeNode,
     tool,
     aplitePreview,
+    pixelPreview,
     stage,
     previewStage,
     setPreviewStage,
@@ -251,12 +252,28 @@ export const CanvasStage = () => {
   const [activeGPathId, setActiveGPathId] = useState<string | null>(null)
   const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight)
   const backgroundRef = useRef<Konva.Rect | null>(null)
+  const sceneLayerRef = useRef<Konva.Layer | null>(null)
   const closeThreshold = 8
+
+  const registerSceneLayer = useCallback((layer: Konva.Layer | null) => {
+    sceneLayerRef.current = layer
+  }, [])
 
   const displayStage = previewStage ?? stage
   const largestStageAxis = Math.max(displayStage.width, displayStage.height)
-  const scale = Math.min(2.6, 480 / largestStageAxis, Math.max(280, viewportHeight - 400) / largestStageAxis)
+  const availableScale = Math.min(480 / largestStageAxis, Math.max(280, viewportHeight - 400) / largestStageAxis)
+  const scale = Math.min(2.6, availableScale)
   const isPreviewingTarget = !sameStageSize(stage, displayStage)
+
+  useEffect(() => {
+    const layer = sceneLayerRef.current
+    if (!layer) return
+    const canvas = layer.getCanvas()
+    const targetPixelRatio = pixelPreview ? 1 : window.devicePixelRatio || 1
+    if (canvas.getPixelRatio() !== targetPixelRatio) canvas.setPixelRatio(targetPixelRatio)
+    layer.imageSmoothingEnabled(!pixelPreview)
+    layer.batchDraw()
+  }, [displayStage, pixelPreview])
 
   const previewOptions = useMemo(() => {
     const options: { id: string; label: string; size: StageSize | null }[] = [
@@ -515,7 +532,7 @@ export const CanvasStage = () => {
     const stageEl = stageRef.current
     const pointer = stageEl?.getPointerPosition()
     if (!stageEl || !pointer) return
-    const normalized = { x: pointer.x / scale, y: pointer.y / scale }
+    const normalized = pixelPreview ? { x: pointer.x, y: pointer.y } : { x: pointer.x / scale, y: pointer.y / scale }
     if (tool === 'gpath') {
       evt.cancelBubble = true
       const currentActiveGPathId = activeGPathId || null
@@ -596,18 +613,27 @@ export const CanvasStage = () => {
         )}
         {isPreviewingTarget && <span className="preview-chip">Position preview</span>}
       </div>
-      <div className={`canvas-frame ${showRoundMaskEdge ? 'canvas-frame-round' : ''}`}>
+      <div
+        className={`canvas-frame ${showRoundMaskEdge ? 'canvas-frame-round' : ''}`}
+        style={{ width: displayStage.width * scale, height: displayStage.height * scale }}
+      >
         <Stage
-          width={displayStage.width * scale}
-          height={displayStage.height * scale}
-          scaleX={scale}
-          scaleY={scale}
+          width={pixelPreview ? displayStage.width : displayStage.width * scale}
+          height={pixelPreview ? displayStage.height : displayStage.height * scale}
+          scaleX={pixelPreview ? 1 : scale}
+          scaleY={pixelPreview ? 1 : scale}
           ref={stageRef}
-          className="canvas-konva-stage"
+          className={`canvas-konva-stage ${pixelPreview ? 'canvas-konva-stage-pixelated' : ''}`}
+          style={{
+            width: pixelPreview ? displayStage.width : displayStage.width * scale,
+            height: pixelPreview ? displayStage.height : displayStage.height * scale,
+            transform: pixelPreview ? `scale(${scale})` : undefined,
+            transformOrigin: 'top left',
+          }}
           onMouseDown={onStageMouseDown}
           onTouchStart={onStageMouseDown}
         >
-          <Layer>
+          <Layer ref={registerSceneLayer} imageSmoothingEnabled={!pixelPreview}>
             <Rect
               x={0}
               y={0}

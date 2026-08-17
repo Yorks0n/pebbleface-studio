@@ -143,6 +143,7 @@ export type SceneState = {
   selectedIds: string[]
   tool: Tool
   aplitePreview: boolean
+  pixelPreview: boolean
   stage: { width: number; height: number }
   previewStage: { width: number; height: number } | null
   isInitialized: boolean
@@ -157,6 +158,7 @@ export type SceneState = {
   setBackgroundColor: (color: string) => void
   setTool: (tool: Tool) => void
   toggleAplite: () => void
+  togglePixelPreview: () => void
   setSelection: (ids: string[]) => void
   addRect: (x: number, y: number) => void
   addText: (x: number, y: number) => void
@@ -259,6 +261,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   selectedIds: [],
   tool: 'select',
   aplitePreview: false,
+  pixelPreview: false,
   stage: { width: 144, height: 168 },
   previewStage: null,
   isInitialized: false,
@@ -283,6 +286,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   setBackgroundColor: (color) => set({ backgroundColor: color }),
   setTool: (tool) => set({ tool }),
   toggleAplite: () => set((state) => ({ aplitePreview: !state.aplitePreview })),
+  togglePixelPreview: () => set((state) => ({ pixelPreview: !state.pixelPreview })),
   setSelection: (ids) => set({ selectedIds: ids }),
   addRect: (x, y) =>
     set((state) => {

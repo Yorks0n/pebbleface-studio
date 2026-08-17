@@ -328,6 +328,7 @@ select {
 }
 
 .canvas-frame {
+  box-sizing: content-box;
   overflow: hidden;
   border: 1px solid #cbd5e1;
   border-radius: 3px;
@@ -344,6 +345,16 @@ select {
 .canvas-konva-stage {
   display: block;
   background: #0b0d12;
+}
+
+.canvas-konva-stage-pixelated {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+.canvas-konva-stage-pixelated canvas {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 .studio-previewbar {

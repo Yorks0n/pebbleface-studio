@@ -78,6 +78,8 @@ export const PropertiesPanel = () => {
     setBackgroundColor,
     aplitePreview,
     toggleAplite,
+    pixelPreview,
+    togglePixelPreview,
   } = useSceneStore()
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -286,6 +288,16 @@ export const PropertiesPanel = () => {
                 checked={aplitePreview}
                 onCheckedChange={toggleAplite}
                 aria-label="Toggle Aplite monochrome preview"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-[90px_1fr] items-center gap-3">
+            <div className="inspector-label">Pixel preview</div>
+            <div className="flex h-9 items-center justify-end">
+              <Switch
+                checked={pixelPreview}
+                onCheckedChange={togglePixelPreview}
+                aria-label="Toggle pixel preview"
               />
             </div>
           </div>
