@@ -10,7 +10,6 @@ import {
   type GPathNode,
   type TextNode,
   type CustomFont,
-  type FontFilter,
   type ProjectFile,
   type ProjectSceneNode,
 } from '../store/scene'
@@ -23,6 +22,11 @@ import {
   buildImageTimePositions,
   imageTimeCharCount,
 } from '../lib/image-time'
+import {
+  buildCustomFontCharacterCoverage,
+  characterRegexForCoverage,
+  customFontUsageKey,
+} from '../lib/font-filter'
 
 type PebbleResource = {
   type: string
@@ -60,6 +64,7 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
   // Identify used custom fonts and add them to resources
   const usedCustomFonts = new Set<string>()
   const textNodes = nodes.filter((n) => n.type === 'text' || n.type === 'time') as (TextNode | TimeNode)[]
+  const customFontCoverage = buildCustomFontCharacterCoverage(nodes)
 
   for (const node of textNodes) {
     if (node.customFontId) {
@@ -67,7 +72,8 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
       if (fontDef) {
         usedCustomFonts.add(node.customFontId)
 
-        // Generate resource entry for this specific size/filter combo
+        // Nodes sharing a custom font and size use one resource containing the
+        // union of every filter used by that group.
         const resourceName = `FONT_${sanitizeResourceName(fontDef.name)}_${node.fontSize}`
         // Check if already added
         if (!fonts.find((f) => f.name === resourceName)) {
@@ -76,7 +82,7 @@ export async function generatePebbleProjectZip(nodes: SceneNode[], projectName: 
             name: resourceName,
             file: `fonts/${fontDef.file?.name || fontDef.name + '.ttf'}`,
             compatibility: '2.7', // Standard
-            characterRegex: getRegexForFilter(node.fontFilter),
+            characterRegex: characterRegexForCoverage(customFontCoverage.get(customFontUsageKey(node)!)),
           })
         }
       }
@@ -754,21 +760,6 @@ const strftimeForFormat = (format: TimeNode['format'], kind: TimeNode['text']) =
       return '%m/%d/%Y'
     default:
       return kind === 'date' ? '%Y-%m-%d' : '%H:%M'
-  }
-}
-
-const getRegexForFilter = (filter?: FontFilter) => {
-  switch (filter) {
-    case 'digits':
-      return '[0-9:]'
-    case 'standard':
-      return '[0-9a-zA-Z]'
-    case 'extended':
-      return '[0-9a-zA-Z:,.\\/\\- ]' // Basic punctuation for dates/times
-    case 'none':
-      return undefined
-    default:
-      return '[0-9a-zA-Z]'
   }
 }
 

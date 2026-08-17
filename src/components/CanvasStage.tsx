@@ -20,6 +20,11 @@ import {
 } from '../lib/utils'
 import { imageTimeRenderedValue, buildImageTimePositions } from '../lib/image-time'
 import {
+  buildCustomFontCharacterCoverage,
+  customFontUsageKey,
+  filterTextForCoverage,
+} from '../lib/font-filter'
+import {
   PLATFORM_SIZES,
   mapNodeToStage,
   sameStageSize,
@@ -308,10 +313,19 @@ export const CanvasStage = () => {
     return fmt ? fmt.formatter(now) : ''
   }, [now])
 
+  const customFontCoverage = useMemo(() => buildCustomFontCharacterCoverage(nodes), [nodes])
+
+  const previewText = useCallback((node: TimeNode | Extract<SceneNode, { type: 'text' }>, text: string) => {
+    if (!node.customFontId) return text
+    const key = customFontUsageKey(node)
+    return filterTextForCoverage(text, key ? customFontCoverage.get(key) : undefined)
+  }, [customFontCoverage])
+
   const syncTextBounds = useCallback((id: string) => {
     const node = nodes.find((n) => n.id === id)
     if (!node || (node.type !== 'text' && node.type !== 'time')) return
-    const text = node.type === 'time' ? formatTimeNode(node) : node.text
+    const rawText = node.type === 'time' ? formatTimeNode(node) : node.text
+    const text = previewText(node, rawText)
     const measured = new Konva.Text({
       text,
       fontFamily: node.fontFamily,
@@ -324,7 +338,7 @@ export const CanvasStage = () => {
     if (Math.abs(node.width - width) > 0.5 || Math.abs(node.height - height) > 0.5) {
       updateNode(id, { width, height })
     }
-  }, [formatTimeNode, nodes, updateNode])
+  }, [formatTimeNode, nodes, previewText, updateNode])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -696,7 +710,7 @@ export const CanvasStage = () => {
                     y={node.y}
                     width={node.width}
                     height={node.height}
-                    text={node.text}
+                    text={previewText(node, node.text)}
                     fontFamily={node.fontFamily}
                     fontSize={node.fontSize}
                     fill={getBwColor(node.fill)}
@@ -723,7 +737,7 @@ export const CanvasStage = () => {
                     y={node.y}
                     width={node.width}
                     height={node.height}
-                    text={formatTimeNode(node)}
+                    text={previewText(node, formatTimeNode(node))}
                     fontFamily={node.fontFamily}
                     fontSize={node.fontSize}
                     fill={getBwColor(node.fill)}

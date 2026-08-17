@@ -423,6 +423,10 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       }
     }),
   addCustomFont: async (file) => {
+    if (!file.name.toLowerCase().endsWith('.ttf')) {
+      throw new Error('Only TrueType (.ttf) fonts are supported by Pebble.')
+    }
+
     // Read file as DataURL
     const reader = new FileReader()
     const dataUrl = await new Promise<string>((resolve) => {
@@ -666,22 +670,7 @@ function dateParts(date: Date, pattern: string) {
 }
 
 async function injectFontFace(name: string, dataUrl: string) {
-  const style = document.createElement('style')
-  style.textContent = `
-    @font-face {
-      font-family: "${name}";
-      src: url("${dataUrl}");
-    }
-  `
-  document.head.appendChild(style)
-  
-  // Wait for font to load via a dummy element
-  const div = document.createElement('div')
-  div.style.fontFamily = name
-  div.textContent = 'Loading...'
-  div.style.position = 'absolute'
-  div.style.top = '-9999px'
-  document.body.appendChild(div)
-  await new Promise(r => setTimeout(r, 100))
-  document.body.removeChild(div)
+  const fontFace = new FontFace(name, `url("${dataUrl}")`)
+  const loadedFont = await fontFace.load()
+  document.fonts.add(loadedFont)
 }

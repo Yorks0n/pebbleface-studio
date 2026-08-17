@@ -23,6 +23,11 @@ import {
   timeParts,
 } from '../store/scene'
 import { parseGlyphKeyFromFileName } from '../lib/image-time'
+import {
+  buildCustomFontCharacterCoverage,
+  customFontUsageKey,
+  unsupportedCharacters,
+} from '../lib/font-filter'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -77,6 +82,7 @@ export const PropertiesPanel = () => {
   const target = useMemo(() => nodes.find((n) => n.id === selectedIds[0]), [nodes, selectedIds])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const digitInputRef = useRef<HTMLInputElement>(null)
+  const [fontUploadError, setFontUploadError] = useState<string | null>(null)
 
   // Dynamic background based on element color, but kept light
   const bgTint =
@@ -117,6 +123,8 @@ export const PropertiesPanel = () => {
       return
     }
 
+    setFontUploadError(null)
+
     if (key.startsWith('custom-')) {
       const id = key.replace('custom-', '')
       const font = customFonts.find((f) => f.id === id)
@@ -156,7 +164,21 @@ export const PropertiesPanel = () => {
   const handleCustomUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const id = await addCustomFont(file)
+    if (!file.name.toLowerCase().endsWith('.ttf')) {
+      setFontUploadError('Only TrueType (.ttf) fonts are supported by Pebble.')
+      e.target.value = ''
+      return
+    }
+
+    setFontUploadError(null)
+    let id: string
+    try {
+      id = await addCustomFont(file)
+    } catch (error) {
+      setFontUploadError(error instanceof Error ? error.message : 'Unable to load this font.')
+      e.target.value = ''
+      return
+    }
 
     // Access fresh state to get the new font object
     const freshFonts = useSceneStore.getState().customFonts
@@ -213,9 +235,6 @@ export const PropertiesPanel = () => {
 
   const fontWarning = useMemo(() => {
     if (!target || (target.type !== 'text' && target.type !== 'time')) return null
-    const fontKey = getCurrentFontKey(target as TextNode | TimeNode)
-    const font = SYSTEM_FONTS.find((f) => f.key === fontKey)
-    if (!font || !font.regex) return null
 
     let text = ''
     if (target.type === 'text') {
@@ -234,11 +253,23 @@ export const PropertiesPanel = () => {
       }
     }
 
+    if (target.customFontId) {
+      const coverage = buildCustomFontCharacterCoverage(nodes)
+      const key = customFontUsageKey(target)
+      const missing = unsupportedCharacters(text, key ? coverage.get(key) : undefined)
+      if (missing.length > 0) return `Export filter excludes ${formatCharacters(missing)}`
+      return null
+    }
+
+    const fontKey = getCurrentFontKey(target as TextNode | TimeNode)
+    const font = SYSTEM_FONTS.find((f) => f.key === fontKey)
+    if (!font || !font.regex) return null
+
     if (!new RegExp(font.regex).test(text)) {
       return 'Missing glyphs'
     }
     return null
-  }, [target])
+  }, [nodes, target])
 
   if (!target) {
     return (
@@ -397,6 +428,12 @@ export const PropertiesPanel = () => {
                  <option value="upload-new">+ Upload New...</option>
               </optgroup>
             </select>
+            {fontUploadError && (
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-medium leading-tight">
+                <AlertCircle size={10} className="shrink-0" />
+                {fontUploadError}
+              </div>
+            )}
             {fontWarning && (
               <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-medium leading-tight">
                 <AlertCircle size={10} className="shrink-0" />
@@ -510,6 +547,12 @@ export const PropertiesPanel = () => {
                  <option value="upload-new">+ Upload New...</option>
               </optgroup>
             </select>
+            {fontUploadError && (
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-medium leading-tight">
+                <AlertCircle size={10} className="shrink-0" />
+                {fontUploadError}
+              </div>
+            )}
             {fontWarning && (
               <div className="mt-1 flex items-center gap-1.5 text-[10px] text-red-500 font-medium leading-tight">
                 <AlertCircle size={10} className="shrink-0" />
@@ -698,7 +741,7 @@ export const PropertiesPanel = () => {
       )}
       <input
         type="file"
-        accept=".ttf,.otf,.woff"
+        accept=".ttf,font/ttf,application/x-font-ttf"
         ref={fileInputRef}
         className="hidden"
         onChange={handleCustomUpload}
@@ -725,6 +768,16 @@ function readFileAsDataUrl(file: File) {
   })
 }
 
+function formatCharacters(characters: string[]) {
+  return characters
+    .map((character) => {
+      if (character === ' ') return 'space'
+      if (character === '\n') return 'line break'
+      if (character === '\t') return 'tab'
+      return `“${character}”`
+    })
+    .join(', ')
+}
 
 function imageTimeDigitWidth(node: ImageTimeNode) {
   return Math.max(4, (node.width - totalSegmentGap(node)) / Math.max(1, segmentedCharCount(node)))
