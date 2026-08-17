@@ -2,6 +2,11 @@ import { create } from 'zustand'
 import { apliteColor, uid, randomUuid } from '../lib/utils'
 import { defaultFill, defaultStroke } from '../lib/color-dict'
 import { ALL_TARGET_PLATFORMS } from '../utils/layout'
+import {
+  dateAtPreviewMinutes,
+  previewTimeAt,
+  type PreviewTimeSpeed,
+} from '../lib/preview-clock'
 
 export type Tool = 'select' | 'rect' | 'text' | 'image' | 'time' | 'image-time' | 'gpath'
 
@@ -144,6 +149,9 @@ export type SceneState = {
   tool: Tool
   aplitePreview: boolean
   pixelPreview: boolean
+  previewTimeAnchorMs: number
+  previewTimeAnchorRealMs: number
+  previewTimeSpeed: PreviewTimeSpeed
   stage: { width: number; height: number }
   previewStage: { width: number; height: number } | null
   isInitialized: boolean
@@ -159,6 +167,9 @@ export type SceneState = {
   setTool: (tool: Tool) => void
   toggleAplite: () => void
   togglePixelPreview: () => void
+  setPreviewTimeMinutes: (minutes: number) => void
+  setPreviewTimeSpeed: (speed: PreviewTimeSpeed) => void
+  resetPreviewTime: () => void
   setSelection: (ids: string[]) => void
   addRect: (x: number, y: number) => void
   addText: (x: number, y: number) => void
@@ -223,6 +234,8 @@ export const SYSTEM_FONTS: PebbleFont[] = [
   { label: 'LECO 42 (Numbers)', family: 'LECO 1976', size: 42, key: 'FONT_KEY_LECO_42_NUMBERS', regex: '^[0-9:\\-\\.\\s]*$' },
 ]
 
+const initialPreviewTime = Date.now()
+
 export const useSceneStore = create<SceneState>((set, get) => ({
   nodes: [
     {
@@ -262,6 +275,9 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   tool: 'select',
   aplitePreview: false,
   pixelPreview: false,
+  previewTimeAnchorMs: initialPreviewTime,
+  previewTimeAnchorRealMs: initialPreviewTime,
+  previewTimeSpeed: 1,
   stage: { width: 144, height: 168 },
   previewStage: null,
   isInitialized: false,
@@ -287,6 +303,32 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   setTool: (tool) => set({ tool }),
   toggleAplite: () => set((state) => ({ aplitePreview: !state.aplitePreview })),
   togglePixelPreview: () => set((state) => ({ pixelPreview: !state.pixelPreview })),
+  setPreviewTimeMinutes: (minutes) => {
+    const realNowMs = Date.now()
+    set((state) => ({
+      previewTimeAnchorMs: dateAtPreviewMinutes(
+        new Date(previewTimeAt(state, realNowMs)),
+        minutes,
+      ).getTime(),
+      previewTimeAnchorRealMs: realNowMs,
+    }))
+  },
+  setPreviewTimeSpeed: (speed) => {
+    const realNowMs = Date.now()
+    set((state) => ({
+      previewTimeAnchorMs: previewTimeAt(state, realNowMs),
+      previewTimeAnchorRealMs: realNowMs,
+      previewTimeSpeed: speed,
+    }))
+  },
+  resetPreviewTime: () => {
+    const now = Date.now()
+    set({
+      previewTimeAnchorMs: now,
+      previewTimeAnchorRealMs: now,
+      previewTimeSpeed: 1,
+    })
+  },
   setSelection: (ids) => set({ selectedIds: ids }),
   addRect: (x, y) =>
     set((state) => {

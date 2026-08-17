@@ -31,6 +31,7 @@ import {
   unmapNodePosition,
   type StageSize,
 } from '../utils/layout'
+import { previewTimeAt } from '../lib/preview-clock'
 
 type BitmapProps = {
   node: SceneNode & { type: 'bitmap' }
@@ -238,6 +239,9 @@ export const CanvasStage = () => {
     tool,
     aplitePreview,
     pixelPreview,
+    previewTimeAnchorMs,
+    previewTimeAnchorRealMs,
+    previewTimeSpeed,
     stage,
     previewStage,
     setPreviewStage,
@@ -248,7 +252,11 @@ export const CanvasStage = () => {
   const stageRef = useRef<Konva.Stage | null>(null)
   const transformerRef = useRef<Konva.Transformer | null>(null)
   const shapeRefs = useRef<Record<string, Konva.Node | null>>({})
-  const [now, setNow] = useState(() => new Date())
+  const [now, setNow] = useState(() => new Date(previewTimeAt({
+    previewTimeAnchorMs,
+    previewTimeAnchorRealMs,
+    previewTimeSpeed,
+  })))
   const [activeGPathId, setActiveGPathId] = useState<string | null>(null)
   const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight)
   const backgroundRef = useRef<Konva.Rect | null>(null)
@@ -308,9 +316,15 @@ export const CanvasStage = () => {
   }
 
   useEffect(() => {
-    const t = window.setInterval(() => setNow(new Date()), 1000)
+    const updateNow = () => setNow(new Date(previewTimeAt({
+      previewTimeAnchorMs,
+      previewTimeAnchorRealMs,
+      previewTimeSpeed,
+    })))
+    updateNow()
+    const t = window.setInterval(updateNow, 250)
     return () => window.clearInterval(t)
-  }, [])
+  }, [previewTimeAnchorMs, previewTimeAnchorRealMs, previewTimeSpeed])
 
   useEffect(() => {
     const handleResize = () => setViewportHeight(window.innerHeight)

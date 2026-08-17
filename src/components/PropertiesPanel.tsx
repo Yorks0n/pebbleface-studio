@@ -33,6 +33,7 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Switch } from './ui/switch'
 import { ColorSelect } from './ColorSelect'
+import { PreviewTimeControls } from './PreviewTimeControls'
 
 type SceneNodeKey = keyof (RectNode & TextNode & BitmapNode & TimeNode & ImageTimeNode & GPathNode)
 type TimeKeys = keyof TimeNode
@@ -278,6 +279,10 @@ export const PropertiesPanel = () => {
       <div className="inspector-content" style={bgStyle}>
         <InspectorSection title="Canvas">
           <ColorSelect label="Background" value={backgroundColor} onChange={setBackgroundColor} />
+        </InspectorSection>
+
+        <InspectorSection title="Time preview">
+          <PreviewTimeControls />
         </InspectorSection>
 
         <InspectorSection title="Preview">
